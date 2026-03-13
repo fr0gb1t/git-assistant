@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import argparse
 from pathlib import Path
 
 from git_assistant.ai.base import AIConfig
@@ -19,6 +20,38 @@ from git_assistant.git.ops import (
     is_git_repo,
 )
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog="git-assistant",
+        description="Generate git commit messages using AI.",
+    )
+
+    parser.add_argument(
+        "--provider",
+        default="ollama",
+        help="AI provider to use (default: ollama)",
+    )
+
+    parser.add_argument(
+        "--model",
+        default="qwen2.5:14b",
+        help="Model name to use",
+    )
+
+    parser.add_argument(
+        "--host",
+        default="http://127.0.0.1:11434",
+        help="API host for the provider",
+    )
+
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=120,
+        help="Request timeout in seconds",
+    )
+
+    return parser.parse_args()
 
 def prompt_user_action() -> str:
     print("\nWhat do you want to do?")
@@ -35,6 +68,7 @@ def print_context_summary(result: CommitMessageResult) -> None:
     print(f"- truncated: {'yes' if result.was_truncated else 'no'}")
 
 def main() -> None:
+    args = parse_args()
     cwd = Path.cwd()
 
     if not is_git_repo(cwd):
@@ -58,7 +92,12 @@ def main() -> None:
     for file_path in changed_files:
         print(f"- {file_path}")
 
-    ai_config = AIConfig()
+    ai_config = AIConfig(
+        provider=args.provider,
+        model=args.model,
+        host=args.host,
+        timeout=args.timeout,
+    )
 
     print(f"\nGenerating commit message using {ai_config.provider}...\n")
 
