@@ -3,16 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from git_assistant.ai.ollama import generate
+from git_assistant.commit.diff_context import DiffContextBuilder
 from git_assistant.commit.message import (
     SYSTEM_PROMPT,
     build_prompt,
     clean_message,
 )
-from git_assistant.git.ops import (
-    GitError,
-    get_changed_files,
-    get_combined_diff,
-)
+from git_assistant.git.ops import GitError, get_changed_files
 
 
 class CommitMessageGenerationError(RuntimeError):
@@ -29,19 +26,19 @@ def generate_commit_message(
     """
     try:
         changed_files = get_changed_files(cwd)
-        diff = get_combined_diff(cwd)
+        diff_context = DiffContextBuilder().build(cwd)
     except GitError as exc:
         raise CommitMessageGenerationError(f"Git error: {exc}") from exc
 
     if not changed_files:
         raise CommitMessageGenerationError("No changed files detected.")
 
-    if not diff.strip():
+    if not diff_context.text.strip():
         raise CommitMessageGenerationError(
-            "Diff is empty (maybe everything is staged)."
+            "Diff is empty (no staged or unstaged content detected)."
         )
 
-    prompt = build_prompt(changed_files, diff)
+    prompt = build_prompt(changed_files, diff_context.text)
 
     try:
         raw_response = generate(
