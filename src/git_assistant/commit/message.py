@@ -22,15 +22,16 @@ def build_prompt(changed_files: list[str], diff: str) -> str:
     """
     Build the user prompt sent to the model.
     """
-    files = "\n".join(f"- {f}" for f in changed_files) or "- unknown"
+
+    files = "\n".join(f"- {f}" for f in changed_files)
 
     return f"""
-Analyze the following git changes and propose one commit message.
+Analyze the following git repository changes and propose ONE commit message.
 
 Changed files:
 {files}
 
-Git diff:
+Diff context:
 {diff}
 """
 

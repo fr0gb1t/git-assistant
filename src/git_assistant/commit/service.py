@@ -8,7 +8,11 @@ from git_assistant.commit.message import (
     build_prompt,
     clean_message,
 )
-from git_assistant.git.ops import GitError, get_changed_files, get_unstaged_diff
+from git_assistant.git.ops import (
+    GitError,
+    get_changed_files,
+    get_combined_diff,
+)
 
 
 class CommitMessageGenerationError(RuntimeError):
@@ -25,7 +29,7 @@ def generate_commit_message(
     """
     try:
         changed_files = get_changed_files(cwd)
-        diff = get_unstaged_diff(cwd)
+        diff = get_combined_diff(cwd)
     except GitError as exc:
         raise CommitMessageGenerationError(f"Git error: {exc}") from exc
 

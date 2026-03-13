@@ -111,3 +111,28 @@ def git_commit(message: str, cwd: Path | None = None) -> str:
     Create a git commit with the provided message.
     """
     return run_git_command(["commit", "-m", message], cwd=cwd)
+
+def get_staged_diff(cwd: Path | None = None) -> str:
+    """
+    Return staged diff (git diff --cached).
+    """
+    return run_git_command(["diff", "--cached"], cwd=cwd)
+
+
+def get_combined_diff(cwd: Path | None = None) -> str:
+    """
+    Return a combined diff including staged and unstaged changes.
+    """
+
+    unstaged = get_unstaged_diff(cwd)
+    staged = get_staged_diff(cwd)
+
+    parts: list[str] = []
+
+    if staged.strip():
+        parts.append("STAGED CHANGES:\n" + staged)
+
+    if unstaged.strip():
+        parts.append("UNSTAGED CHANGES:\n" + unstaged)
+
+    return "\n\n".join(parts)
