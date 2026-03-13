@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from git_assistant.ai.ollama import generate
+from git_assistant.ai.base import AIConfig, AIProviderError
+from git_assistant.ai.factory import get_ai_provider
 from git_assistant.commit.diff_context import DiffContextBuilder
 from git_assistant.commit.message import (
     SYSTEM_PROMPT,
@@ -31,12 +32,13 @@ class CommitMessageResult:
 
 def generate_commit_message(
     cwd: Path,
-    model: str = "qwen2.5:14b",
-    host: str = "http://127.0.0.1:11434",
+    ai_config: AIConfig | None = None,
 ) -> CommitMessageResult:
     """
     Generate a commit message for the current repository state.
     """
+    config = ai_config or AIConfig()
+
     try:
         changed_files = get_changed_files(cwd)
         diff_context = DiffContextBuilder().build(cwd)
@@ -54,14 +56,13 @@ def generate_commit_message(
     prompt = build_prompt(changed_files, diff_context.text)
 
     try:
-        raw_response = generate(
+        provider = get_ai_provider(config)
+        raw_response = provider.generate(
             system_prompt=SYSTEM_PROMPT,
             user_prompt=prompt,
-            model=model,
-            host=host,
         )
         cleaned_message = clean_message(raw_response)
-    except Exception as exc:
+    except (AIProviderError, ValueError) as exc:
         raise CommitMessageGenerationError(
             f"Failed to generate commit message: {exc}"
         ) from exc

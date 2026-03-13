@@ -2,47 +2,48 @@ from __future__ import annotations
 
 import requests
 
-
-class OllamaError(RuntimeError):
-    """Raised when the Ollama API fails."""
+from git_assistant.ai.base import AIConfig, AIProvider, AIProviderError
 
 
-def generate(
-    *,
-    system_prompt: str,
-    user_prompt: str,
-    model: str = "qwen2.5:14b",
-    host: str = "http://127.0.0.1:11434",
-    timeout: int = 120,
-) -> str:
+class OllamaProvider(AIProvider):
     """
-    Send a request to Ollama and return the generated response.
+    Ollama implementation of the AI provider interface.
     """
 
-    url = f"{host}/api/generate"
+    def __init__(self, config: AIConfig) -> None:
+        self.config = config
 
-    payload = {
-        "model": model,
-        "system": system_prompt,
-        "prompt": user_prompt,
-        "stream": False,
-    }
+    def generate(self, *, system_prompt: str, user_prompt: str) -> str:
+        """
+        Send a request to Ollama and return the generated response.
+        """
+        url = f"{self.config.host.rstrip('/')}/api/generate"
 
-    try:
-        response = requests.post(url, json=payload, timeout=timeout)
-    except requests.RequestException as exc:
-        raise OllamaError(f"Failed to connect to Ollama: {exc}") from exc
+        payload = {
+            "model": self.config.model,
+            "system": system_prompt,
+            "prompt": user_prompt,
+            "stream": False,
+        }
 
-    if response.status_code != 200:
-        raise OllamaError(
-            f"Ollama returned HTTP {response.status_code}: {response.text}"
-        )
+        try:
+            response = requests.post(
+                url,
+                json=payload,
+                timeout=self.config.timeout,
+            )
+        except requests.RequestException as exc:
+            raise AIProviderError(f"Failed to connect to Ollama: {exc}") from exc
 
-    data = response.json()
+        if response.status_code != 200:
+            raise AIProviderError(
+                f"Ollama returned HTTP {response.status_code}: {response.text}"
+            )
 
-    result = data.get("response", "").strip()
+        data = response.json()
+        result = data.get("response", "").strip()
 
-    if not result:
-        raise OllamaError("Ollama returned an empty response")
+        if not result:
+            raise AIProviderError("Ollama returned an empty response")
 
-    return result
+        return result

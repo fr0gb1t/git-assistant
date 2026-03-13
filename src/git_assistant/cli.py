@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+from git_assistant.ai.base import AIConfig
 from git_assistant.commit.service import (
     CommitMessageGenerationError,
     CommitMessageResult,
@@ -28,11 +29,10 @@ def prompt_user_action() -> str:
 
 
 def print_context_summary(result: CommitMessageResult) -> None:
-    print("Context sent to Ollama:")
+    print("Context sent to AI provider:")
     print(f"- staged changes: {'yes' if result.staged_included else 'no'}")
     print(f"- unstaged changes: {'yes' if result.unstaged_included else 'no'}")
     print(f"- truncated: {'yes' if result.was_truncated else 'no'}")
-
 
 def main() -> None:
     cwd = Path.cwd()
@@ -58,10 +58,12 @@ def main() -> None:
     for file_path in changed_files:
         print(f"- {file_path}")
 
-    print("\nGenerating commit message with Ollama...\n")
+    ai_config = AIConfig()
+
+    print(f"\nGenerating commit message using {ai_config.provider}...\n")
 
     try:
-        result = generate_commit_message(cwd)
+        result = generate_commit_message(cwd, ai_config=ai_config)
     except CommitMessageGenerationError as exc:
         print(str(exc), file=sys.stderr)
         sys.exit(1)
