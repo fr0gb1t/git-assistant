@@ -1,0 +1,5 @@
+[ai]
+provider = "ollama"
+model = "qwen2.5:14b"
+host = "http://127.0.0.1:11434"
+timeout = 120
