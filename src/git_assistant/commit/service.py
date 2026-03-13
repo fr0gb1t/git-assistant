@@ -29,6 +29,23 @@ class CommitMessageResult:
     staged_included: bool
     unstaged_included: bool
 
+REPAIR_PROMPT_TEMPLATE = """
+The previous response did not follow the required format.
+
+You must now output exactly ONE valid Conventional Commit message.
+
+Rules:
+- Output one single line only
+- No explanation
+- No markdown
+- No bullets
+- No quotes
+- Must start with one of:
+  feat, fix, refactor, docs, test, chore
+
+Previous invalid response:
+{invalid_response}
+"""
 
 def generate_commit_message(
     cwd: Path,
@@ -57,11 +74,25 @@ def generate_commit_message(
 
     try:
         provider = get_ai_provider(config)
+
         raw_response = provider.generate(
             system_prompt=SYSTEM_PROMPT,
             user_prompt=prompt,
         )
-        cleaned_message = clean_message(raw_response)
+
+        try:
+            cleaned_message = clean_message(raw_response)
+        except ValueError:
+            repair_prompt = REPAIR_PROMPT_TEMPLATE.format(
+                invalid_response=raw_response
+            )
+
+            repaired_response = provider.generate(
+                system_prompt=SYSTEM_PROMPT,
+                user_prompt=repair_prompt,
+            )
+            cleaned_message = clean_message(repaired_response)
+
     except (AIProviderError, ValueError) as exc:
         raise CommitMessageGenerationError(
             f"Failed to generate commit message: {exc}"
