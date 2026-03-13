@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 from git_assistant.ai.ollama import generate
@@ -16,11 +17,23 @@ class CommitMessageGenerationError(RuntimeError):
     """Raised when the commit message could not be generated."""
 
 
+@dataclass(slots=True)
+class CommitMessageResult:
+    """
+    Result of commit message generation.
+    """
+
+    message: str
+    was_truncated: bool
+    staged_included: bool
+    unstaged_included: bool
+
+
 def generate_commit_message(
     cwd: Path,
     model: str = "qwen2.5:14b",
     host: str = "http://127.0.0.1:11434",
-) -> str:
+) -> CommitMessageResult:
     """
     Generate a commit message for the current repository state.
     """
@@ -47,8 +60,15 @@ def generate_commit_message(
             model=model,
             host=host,
         )
-        return clean_message(raw_response)
+        cleaned_message = clean_message(raw_response)
     except Exception as exc:
         raise CommitMessageGenerationError(
             f"Failed to generate commit message: {exc}"
         ) from exc
+
+    return CommitMessageResult(
+        message=cleaned_message,
+        was_truncated=diff_context.was_truncated,
+        staged_included=diff_context.staged_included,
+        unstaged_included=diff_context.unstaged_included,
+    )

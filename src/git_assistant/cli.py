@@ -5,6 +5,7 @@ from pathlib import Path
 
 from git_assistant.commit.service import (
     CommitMessageGenerationError,
+    CommitMessageResult,
     generate_commit_message,
 )
 from git_assistant.git.ops import (
@@ -24,6 +25,13 @@ def prompt_user_action() -> str:
     print("[2] Edit message")
     print("[3] Cancel")
     return input("> ").strip()
+
+
+def print_context_summary(result: CommitMessageResult) -> None:
+    print("Context sent to Ollama:")
+    print(f"- staged changes: {'yes' if result.staged_included else 'no'}")
+    print(f"- unstaged changes: {'yes' if result.unstaged_included else 'no'}")
+    print(f"- truncated: {'yes' if result.was_truncated else 'no'}")
 
 
 def main() -> None:
@@ -53,18 +61,20 @@ def main() -> None:
     print("\nGenerating commit message with Ollama...\n")
 
     try:
-        suggested_message = generate_commit_message(cwd)
+        result = generate_commit_message(cwd)
     except CommitMessageGenerationError as exc:
         print(str(exc), file=sys.stderr)
         sys.exit(1)
 
-    print("Suggested commit message:\n")
-    print(suggested_message)
+    print_context_summary(result)
+
+    print("\nSuggested commit message:\n")
+    print(result.message)
 
     action = prompt_user_action()
 
     if action == "1":
-        final_message = suggested_message
+        final_message = result.message
     elif action == "2":
         edited_message = input("Enter commit message: ").strip()
         if not edited_message:
