@@ -31,7 +31,7 @@ def run_git_command(args: list[str], cwd: Path | None = None) -> str:
         stderr = result.stderr.strip() or "Unknown git error"
         raise GitError(stderr)
 
-    return result.stdout.strip()
+    return result.stdout.rstrip("\n")
 
 
 def is_git_repo(cwd: Path | None = None) -> bool:
@@ -58,14 +58,14 @@ def get_repo_root(cwd: Path | None = None) -> Path:
 
 def get_status_short(cwd: Path | None = None) -> str:
     """
-    Return the raw output of `git status --short`.
+    Return the raw output of `git status --porcelain`.
     """
-    return run_git_command(["status", "--short"], cwd=cwd)
+    return run_git_command(["status", "--porcelain"], cwd=cwd)
 
 
 def get_changed_files(cwd: Path | None = None) -> list[str]:
     """
-    Return changed file paths parsed from `git status --short`.
+    Return changed file paths parsed from `git status --porcelain`.
 
     Includes:
     - modified
@@ -74,24 +74,34 @@ def get_changed_files(cwd: Path | None = None) -> list[str]:
     - renamed
     - untracked
     """
-    status = get_status_short(cwd=cwd)
+    status = run_git_command(["status", "--porcelain"], cwd=cwd)
+
     if not status:
         return []
 
     files: list[str] = []
 
-    for line in status.splitlines():
+    for raw_line in status.splitlines():
+        line = raw_line.rstrip()
+
+        if not line:
+            continue
+
+        # Porcelain v1 format:
+        # XY path
+        # XY old_path -> new_path
+        #
+        # The first 3 chars are always: X, Y, space
         if len(line) < 4:
             continue
 
-        path_part = line[3:].strip()
+        path_part = line[3:]
 
-        # Handle rename lines like:
-        # R  old_name.py -> new_name.py
         if " -> " in path_part:
-            path_part = path_part.split(" -> ", 1)[1].strip()
-
-        files.append(path_part)
+            _, new_path = path_part.split(" -> ", 1)
+            files.append(new_path.strip())
+        else:
+            files.append(path_part.strip())
 
     return files
 
