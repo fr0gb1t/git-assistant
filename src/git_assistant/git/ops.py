@@ -66,15 +66,8 @@ def get_status_short(cwd: Path | None = None) -> str:
 def get_changed_files(cwd: Path | None = None) -> list[str]:
     """
     Return changed file paths parsed from `git status --porcelain`.
-
-    Includes:
-    - modified
-    - added
-    - deleted
-    - renamed
-    - untracked
     """
-    status = run_git_command(["status", "--porcelain"], cwd=cwd)
+    status = get_status_short(cwd=cwd)
 
     if not status:
         return []
@@ -87,11 +80,6 @@ def get_changed_files(cwd: Path | None = None) -> list[str]:
         if not line:
             continue
 
-        # Porcelain v1 format:
-        # XY path
-        # XY old_path -> new_path
-        #
-        # The first 3 chars are always: X, Y, space
         if len(line) < 4:
             continue
 
@@ -104,7 +92,6 @@ def get_changed_files(cwd: Path | None = None) -> list[str]:
             files.append(path_part.strip())
 
     return files
-
 
 def get_unstaged_diff(cwd=None) -> str:
     """
