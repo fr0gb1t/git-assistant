@@ -59,6 +59,12 @@ def parse_args() -> argparse.Namespace:
         help="Enable debug output for provider and prompt diagnostics",
     )
 
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Run the full workflow without creating a commit",
+    )
+
     return parser.parse_args()
 
 
@@ -177,6 +183,12 @@ def main() -> None:
         final_message = edited_message
     else:
         print("Cancelled.")
+        sys.exit(0)
+
+    if args.dry_run:
+        print("\n🧪 Dry run enabled.")
+        print("No commit was created.")
+        print(f"Suggested final commit message: {final_message}")
         sys.exit(0)
 
     try:
