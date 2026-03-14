@@ -17,6 +17,7 @@ from git_assistant.git.ops import (
     get_repo_root,
     get_status_short,
     git_add_all,
+    git_add_files,
     git_commit,
     is_git_repo,
 )
@@ -63,6 +64,12 @@ def parse_args() -> argparse.Namespace:
         "--dry-run",
         action="store_true",
         help="Run the full workflow without creating a commit",
+    )
+
+    parser.add_argument(
+        "--all-files",
+        action="store_true",
+        help="Include all changed files without prompting for selection",
     )
 
     return parser.parse_args()
@@ -112,11 +119,79 @@ def print_changed_files(changed_files: list[str]) -> None:
         print(f"  - {file_path}")
 
 
+def print_numbered_files(changed_files: list[str]) -> None:
+    print("📂 Changed files:")
+    print("  [0] all")
+    for index, file_path in enumerate(changed_files, start=1):
+        print(f"  [{index}] {file_path}")
+
+
 def print_context_summary(result: CommitMessageResult) -> None:
     print("🧠 Context summary:")
     print(f"  - staged changes: {'yes' if result.staged_included else 'no'}")
     print(f"  - unstaged changes: {'yes' if result.unstaged_included else 'no'}")
     print(f"  - truncated: {'yes' if result.was_truncated else 'no'}")
+
+
+def parse_file_selection(user_input: str, max_index: int) -> list[int]:
+    """
+    Parse a comma-separated selection like '0' or '1,2,4'.
+    """
+    raw_parts = [part.strip() for part in user_input.split(",") if part.strip()]
+    if not raw_parts:
+        raise ValueError("No file selection provided.")
+
+    indexes: list[int] = []
+
+    for part in raw_parts:
+        if not part.isdigit():
+            raise ValueError(f"Invalid selection: {part}")
+
+        index = int(part)
+
+        if index == 0:
+            if len(raw_parts) > 1:
+                raise ValueError("Selection '0' (all) cannot be combined with others.")
+            return [0]
+
+        if index < 1 or index > max_index:
+            raise ValueError(f"Selection out of range: {index}")
+
+        if index not in indexes:
+            indexes.append(index)
+
+    return indexes
+
+
+def prompt_file_selection(changed_files: list[str]) -> list[str] | None:
+    """
+    Prompt the user to choose which files to include.
+
+    Returns:
+        None -> include all changed files
+        list[str] -> include only selected files
+    """
+    print()
+    print("🗂 Select files to include:")
+    print("Enter comma-separated numbers (example: 0 or 1,2)")
+    print("Press Enter to cancel.")
+
+    user_input = input("> ").strip()
+
+    if not user_input:
+        print("No files selected. Cancelled.")
+        sys.exit(0)
+
+    try:
+        selected_indexes = parse_file_selection(user_input, len(changed_files))
+    except ValueError as exc:
+        print(f"Invalid selection: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    if selected_indexes == [0]:
+        return None
+
+    return [changed_files[index - 1] for index in selected_indexes]
 
 
 def prompt_user_action() -> str:
@@ -150,7 +225,11 @@ def main() -> None:
     ai_config = build_ai_config(args, cwd)
 
     print(f"📦 Repository: {repo_root}")
-    print_changed_files(changed_files)
+
+    if args.all_files:
+        print_changed_files(changed_files)
+    else:
+        print_numbered_files(changed_files)
 
     if ai_config.debug:
         print()
@@ -185,14 +264,31 @@ def main() -> None:
         print("Cancelled.")
         sys.exit(0)
 
+    selected_files: list[str] | None
+
+    if args.all_files:
+        selected_files = None
+    else:
+        selected_files = prompt_file_selection(changed_files)
+
     if args.dry_run:
         print("\n🧪 Dry run enabled.")
+        if selected_files is None:
+            print("Files to include: all changed files")
+        else:
+            print("Files to include:")
+            for file_path in selected_files:
+                print(f"  - {file_path}")
         print("No commit was created.")
         print(f"Suggested final commit message: {final_message}")
         sys.exit(0)
 
     try:
-        git_add_all(cwd)
+        if selected_files is None:
+            git_add_all(cwd)
+        else:
+            git_add_files(selected_files, cwd)
+
         commit_output = git_commit(final_message, cwd)
     except GitError as exc:
         print(f"Git error while creating commit: {exc}", file=sys.stderr)
@@ -200,3 +296,7 @@ def main() -> None:
 
     print("\n✅ Commit created successfully.\n")
     print(commit_output)
+
+
+if __name__ == "__main__":
+    main()

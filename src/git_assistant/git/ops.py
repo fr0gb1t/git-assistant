@@ -105,6 +105,15 @@ def git_add_all(cwd: Path | None = None) -> None:
     """
     run_git_command(["add", "."], cwd=cwd)
 
+def git_add_files(file_paths: list[str], cwd: Path | None = None) -> None:
+    """
+    Stage only the provided files.
+    """
+    if not file_paths:
+        raise GitError("No files were provided to git_add_files().")
+
+    run_git_command(["add", "--", *file_paths], cwd=cwd)
+
 
 def git_commit(message: str, cwd: Path | None = None) -> str:
     """
