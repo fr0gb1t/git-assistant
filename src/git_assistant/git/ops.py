@@ -199,3 +199,16 @@ def read_file_contents(file_path: str, cwd: Path | None = None) -> str:
         raise GitError(f"Could not read untracked file as UTF-8 text: {file_path}")
     except OSError as exc:
         raise GitError(f"Could not read file '{file_path}': {exc}") from exc
+    
+def is_text_file(file_path: str, cwd: Path | None = None) -> bool:
+    """
+    Return True if the file can be read as UTF-8 text.
+    """
+    base_dir = cwd or Path.cwd()
+    abs_path = base_dir / file_path
+
+    try:
+        abs_path.read_text(encoding="utf-8")
+        return True
+    except (UnicodeDecodeError, OSError):
+        return False

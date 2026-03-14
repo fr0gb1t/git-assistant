@@ -16,6 +16,7 @@ STRICT OUTPUT RULES:
 - Do not use bullet points.
 - Do not wrap the message in quotes or backticks.
 - The output must start directly with a Conventional Commit type.
+- If binary or non-text files are listed, mention them based on their filenames only.
 
 FORMAT RULES:
 - Use Conventional Commits format.

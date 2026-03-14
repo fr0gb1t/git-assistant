@@ -8,6 +8,7 @@ from git_assistant.git.ops import (
     get_staged_diff,
     get_unstaged_diff,
     get_untracked_files,
+    is_text_file,
     read_file_contents,
 )
 
@@ -52,7 +53,10 @@ class DiffContextBuilder:
         try:
             staged = get_staged_diff(cwd, file_paths=file_paths)
             unstaged = get_unstaged_diff(cwd, file_paths=file_paths)
-            untracked_files = self._get_relevant_untracked_files(cwd, file_paths)
+            untracked_text, had_untracked, untracked_truncated = self._build_untracked_section(
+                cwd,
+                file_paths=file_paths,
+            )
         except GitError:
             raise
 
@@ -63,10 +67,6 @@ class DiffContextBuilder:
         unstaged_text, unstaged_truncated = self._truncate_section(
             "UNSTAGED CHANGES",
             unstaged,
-        )
-        untracked_text, untracked_truncated = self._build_untracked_section(
-            cwd,
-            untracked_files,
         )
 
         parts: list[str] = []
@@ -96,7 +96,7 @@ class DiffContextBuilder:
             was_truncated=was_truncated,
             staged_included=bool(staged.strip()),
             unstaged_included=bool(unstaged.strip()),
-            untracked_included=bool(untracked_files),
+            untracked_included=had_untracked,
         )
 
     def _get_relevant_untracked_files(
@@ -139,34 +139,60 @@ class DiffContextBuilder:
     def _build_untracked_section(
         self,
         cwd: Path,
-        untracked_files: list[str],
-    ) -> tuple[str, bool]:
+        file_paths: list[str] | None = None,
+    ) -> tuple[str, bool, bool]:
         """
-        Build a synthetic section for untracked files using their file contents.
-        """
-        if not untracked_files:
-            return "", False
+        Build a context section for untracked files.
 
-        entries: list[str] = []
-        truncated = False
+        Text files are included with content.
+        Binary / non-text files are listed by filename only.
+
+        Returns:
+            section_text, had_untracked_files, was_truncated
+        """
+        untracked_files = get_untracked_files(cwd)
+
+        if file_paths is not None:
+            selected_set = set(file_paths)
+            untracked_files = [path for path in untracked_files if path in selected_set]
+
+        if not untracked_files:
+            return "", False, False
+
+        text_entries: list[str] = []
+        binary_entries: list[str] = []
+        was_truncated = False
 
         for file_path in untracked_files:
-            contents = read_file_contents(file_path, cwd)
-
-            file_body = contents
-            if len(file_body) > self.untracked_file_max_chars:
-                omitted = len(file_body) - self.untracked_file_max_chars
-                file_body = (
-                    file_body[: self.untracked_file_max_chars].rstrip()
-                    + f"\n\n[TRUNCATED: omitted {omitted} characters from this file]\n"
+            if is_text_file(file_path, cwd=cwd):
+                content = read_file_contents(
+                    file_path,
+                    cwd=cwd,
+                    max_chars=self.section_max_chars // 2,
                 )
-                truncated = True
 
-            entries.append(
-                f"FILE: {file_path}\n"
-                f"STATUS: untracked\n"
-                f"CONTENT:\n{file_body}"
+                if "[TRUNCATED:" in content:
+                    was_truncated = True
+
+                text_entries.append(
+                    f"FILE: {file_path}\n"
+                    f"```text\n{content}\n```"
+                )
+            else:
+                binary_entries.append(file_path)
+
+        parts: list[str] = []
+
+        if text_entries:
+            parts.append("UNTRACKED TEXT FILES:\n" + "\n\n".join(text_entries))
+
+        if binary_entries:
+            binary_lines = "\n".join(f"- {file_path}" for file_path in binary_entries)
+            parts.append(
+                "UNTRACKED BINARY OR NON-TEXT FILES:\n"
+                f"{binary_lines}"
             )
 
-        section = "UNTRACKED FILES:\n" + "\n\n".join(entries)
-        return section, truncated
+        section = "\n\n".join(parts)
+
+        return section, True, was_truncated
