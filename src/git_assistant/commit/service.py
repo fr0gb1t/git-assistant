@@ -80,9 +80,17 @@ def generate_commit_message(
             user_prompt=prompt,
         )
 
+        if config.debug:
+            print("\n[DEBUG] Initial provider output:")
+            print(repr(raw_response))
+
         try:
             cleaned_message = clean_message(raw_response)
         except ValueError:
+            if config.debug:
+                print("[DEBUG] Initial output did not match Conventional Commit format.")
+                print("[DEBUG] Retrying with repair prompt...")
+
             repair_prompt = REPAIR_PROMPT_TEMPLATE.format(
                 invalid_response=raw_response
             )
@@ -91,6 +99,11 @@ def generate_commit_message(
                 system_prompt=SYSTEM_PROMPT,
                 user_prompt=repair_prompt,
             )
+
+            if config.debug:
+                print("\n[DEBUG] Repaired provider output:")
+                print(repr(repaired_response))
+
             cleaned_message = clean_message(repaired_response)
 
     except (AIProviderError, ValueError) as exc:

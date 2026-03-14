@@ -30,3 +30,4 @@ class AIConfig:
     model: str = "qwen2.5:14b"
     host: str = "http://127.0.0.1:11434"
     timeout: int = 120
+    debug: bool = False

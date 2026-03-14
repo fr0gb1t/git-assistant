@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pprint import pformat
+
 import requests
 
 from git_assistant.ai.base import AIConfig, AIProvider, AIProviderError
@@ -26,6 +28,13 @@ class OllamaProvider(AIProvider):
             "stream": False,
         }
 
+        if self.config.debug:
+            print("\n[DEBUG] Ollama request")
+            print(f"[DEBUG] URL: {url}")
+            print(f"[DEBUG] Model: {self.config.model}")
+            print(f"[DEBUG] System prompt length: {len(system_prompt)}")
+            print(f"[DEBUG] User prompt length: {len(user_prompt)}")
+
         try:
             response = requests.post(
                 url,
@@ -41,9 +50,28 @@ class OllamaProvider(AIProvider):
             )
 
         data = response.json()
-        result = data.get("response", "").strip()
+
+        if self.config.debug:
+            print("\n[DEBUG] Raw Ollama response:")
+            print(pformat(data, width=100))
+
+        raw_response = data.get("response", "")
+
+        if not isinstance(raw_response, str):
+            raise AIProviderError(
+                f"Ollama returned non-text response for model '{self.config.model}'. "
+                f"Response field type: {type(raw_response).__name__}"
+            )
+
+        result = raw_response.strip()
 
         if not result:
-            raise AIProviderError("Ollama returned an empty response")
+            done_reason = data.get("done_reason", "unknown")
+            raise AIProviderError(
+                f"Ollama returned no usable text for model '{self.config.model}' "
+                f"(done_reason={done_reason}). "
+                "This model may be incompatible with this text-only commit workflow. "
+                "Try a text-oriented model like qwen2.5:14b or qwen2.5-coder."
+            )
 
         return result

@@ -53,6 +53,12 @@ def parse_args() -> argparse.Namespace:
         help="Request timeout in seconds",
     )
 
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug output for provider responses and prompt diagnostics",
+    )
+
     return parser.parse_args()
 
 
@@ -68,6 +74,7 @@ def build_ai_config(args: argparse.Namespace, cwd: Path) -> AIConfig:
         sys.exit(1)
 
     ai_config = app_config.ai
+    
 
     if args.provider is not None:
         ai_config.provider = args.provider
@@ -80,6 +87,9 @@ def build_ai_config(args: argparse.Namespace, cwd: Path) -> AIConfig:
 
     if args.timeout is not None:
         ai_config.timeout = args.timeout
+
+    if args.debug is not None:
+        ai_config.debug = args.debug
 
     return ai_config
 
