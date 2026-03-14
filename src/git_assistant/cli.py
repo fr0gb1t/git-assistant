@@ -135,32 +135,56 @@ def print_context_summary(result: CommitMessageResult) -> None:
 
 def parse_file_selection(user_input: str, max_index: int) -> list[int]:
     """
-    Parse a comma-separated selection like '0' or '1,2,4'.
+    Parse a selection string like:
+    - '0'
+    - '1,2,4'
+    - '1-4'
+    - '1-4,7,9-11'
+
+    Returns a sorted list of unique indexes.
     """
     raw_parts = [part.strip() for part in user_input.split(",") if part.strip()]
     if not raw_parts:
         raise ValueError("No file selection provided.")
 
-    indexes: list[int] = []
+    selected: set[int] = set()
 
     for part in raw_parts:
-        if not part.isdigit():
-            raise ValueError(f"Invalid selection: {part}")
-
-        index = int(part)
-
-        if index == 0:
+        if part == "0":
             if len(raw_parts) > 1:
                 raise ValueError("Selection '0' (all) cannot be combined with others.")
             return [0]
 
-        if index < 1 or index > max_index:
-            raise ValueError(f"Selection out of range: {index}")
+        if "-" in part:
+            range_parts = [p.strip() for p in part.split("-", 1)]
 
-        if index not in indexes:
-            indexes.append(index)
+            if len(range_parts) != 2 or not range_parts[0].isdigit() or not range_parts[1].isdigit():
+                raise ValueError(f"Invalid range selection: {part}")
 
-    return indexes
+            start = int(range_parts[0])
+            end = int(range_parts[1])
+
+            if start > end:
+                raise ValueError(f"Invalid range (start > end): {part}")
+
+            if start < 1 or end > max_index:
+                raise ValueError(f"Range out of bounds: {part}")
+
+            for index in range(start, end + 1):
+                selected.add(index)
+
+        else:
+            if not part.isdigit():
+                raise ValueError(f"Invalid selection: {part}")
+
+            index = int(part)
+
+            if index < 1 or index > max_index:
+                raise ValueError(f"Selection out of range: {index}")
+
+            selected.add(index)
+
+    return sorted(selected)
 
 
 def prompt_file_selection(changed_files: list[str]) -> list[str] | None:
@@ -173,7 +197,7 @@ def prompt_file_selection(changed_files: list[str]) -> list[str] | None:
     """
     print()
     print("🗂 Select files to include:")
-    print("Enter comma-separated numbers (example: 0 or 1,2)")
+    print("Specify selection using comma-separated numbers, hyphen ranges, or a combination (e.g. 1,2,5-7,9)")
     print("Press Enter to cancel.")
 
     user_input = input("> ").strip()
@@ -193,14 +217,48 @@ def prompt_file_selection(changed_files: list[str]) -> list[str] | None:
 
     return [changed_files[index - 1] for index in selected_indexes]
 
+def print_selected_files(selected_files: list[str] | None) -> None:
+    if selected_files is None:
+        print("🗂 Files selected for analysis: all changed files")
+        return
+
+    print("🗂 Files selected for analysis:")
+    for file_path in selected_files:
+        print(f"  - {file_path}")
 
 def prompt_user_action() -> str:
     print("\n⚙ What do you want to do?")
     print("[1] Commit with this message")
     print("[2] Edit message")
-    print("[3] Cancel")
+    print("[3] Regenerate message")
+    print("[4] Cancel")
     return input("> ").strip()
 
+def generate_and_display_commit_message(
+    cwd: Path,
+    ai_config: AIConfig,
+    selected_files: list[str] | None,
+) -> CommitMessageResult:
+    print("\n✨ Generating commit message...")
+
+    try:
+        result = generate_commit_message(
+            cwd,
+            ai_config=ai_config,
+            selected_files=selected_files,
+        )
+    except CommitMessageGenerationError as exc:
+        print(str(exc), file=sys.stderr)
+        sys.exit(1)
+
+    if ai_config.debug:
+        print()
+        print_context_summary(result)
+
+    print("\n💬 Suggested commit:")
+    print(result.message)
+
+    return result
 
 def main() -> None:
     args = parse_args()
@@ -233,42 +291,38 @@ def main() -> None:
         print_numbered_files(changed_files)
         selected_files = prompt_file_selection(changed_files)
 
+    print()
+    print_selected_files(selected_files)
+
     if ai_config.debug:
         print()
         print_ai_config(ai_config)
 
-    print("\n✨ Generating commit message...")
-
-    try:
-        result = generate_commit_message(
-            cwd,
+    while True:
+        result = generate_and_display_commit_message(
+            cwd=cwd,
             ai_config=ai_config,
             selected_files=selected_files,
         )
-    except CommitMessageGenerationError as exc:
-        print(str(exc), file=sys.stderr)
-        sys.exit(1)
 
-    if ai_config.debug:
-        print()
-        print_context_summary(result)
+        action = prompt_user_action()
 
-    print("\n💬 Suggested commit:")
-    print(result.message)
-
-    action = prompt_user_action()
-
-    if action == "1":
-        final_message = result.message
-    elif action == "2":
-        edited_message = input("Enter commit message: ").strip()
-        if not edited_message:
-            print("Empty commit message. Cancelled.")
-            sys.exit(1)
-        final_message = edited_message
-    else:
-        print("Cancelled.")
-        sys.exit(0)
+        if action == "1":
+            final_message = result.message
+            break
+        elif action == "2":
+            edited_message = input("Enter commit message: ").strip()
+            if not edited_message:
+                print("Empty commit message. Cancelled.")
+                sys.exit(1)
+            final_message = edited_message
+            break
+        elif action == "3":
+            print("\n🔁 Regenerating commit message...")
+            continue
+        else:
+            print("Cancelled.")
+            sys.exit(0)
 
     if args.dry_run:
         print("\n🧪 Dry run enabled.")
