@@ -32,13 +32,13 @@ class DiffContextBuilder:
         self.max_chars = max_chars
         self.section_max_chars = section_max_chars
 
-    def build(self, cwd: Path) -> DiffContextResult:
+    def build(self, cwd: Path, file_paths: list[str] | None = None,) -> DiffContextResult:
         """
         Build combined diff context from staged and unstaged changes.
         """
         try:
-            staged = get_staged_diff(cwd)
-            unstaged = get_unstaged_diff(cwd)
+            staged = get_staged_diff(cwd, file_paths=file_paths)
+            unstaged = get_unstaged_diff(cwd, file_paths=file_paths)
         except GitError:
             raise
 

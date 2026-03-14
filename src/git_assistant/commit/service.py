@@ -52,6 +52,7 @@ Previous invalid response:
 def generate_commit_message(
     cwd: Path,
     ai_config: AIConfig | None = None,
+    selected_files: list[str] | None = None,
 ) -> CommitMessageResult:
     """
     Generate a commit message for the current repository state.
@@ -59,8 +60,8 @@ def generate_commit_message(
     config = ai_config or AIConfig()
 
     try:
-        changed_files = get_changed_files(cwd)
-        diff_context = DiffContextBuilder().build(cwd)
+        changed_files = selected_files if selected_files is not None else get_changed_files(cwd)
+        diff_context = DiffContextBuilder().build(cwd, file_paths=selected_files)
     except GitError as exc:
         raise CommitMessageGenerationError(f"Git error: {exc}") from exc
 

@@ -228,8 +228,10 @@ def main() -> None:
 
     if args.all_files:
         print_changed_files(changed_files)
+        selected_files = None
     else:
         print_numbered_files(changed_files)
+        selected_files = prompt_file_selection(changed_files)
 
     if ai_config.debug:
         print()
@@ -238,7 +240,11 @@ def main() -> None:
     print("\n✨ Generating commit message...")
 
     try:
-        result = generate_commit_message(cwd, ai_config=ai_config)
+        result = generate_commit_message(
+            cwd,
+            ai_config=ai_config,
+            selected_files=selected_files,
+        )
     except CommitMessageGenerationError as exc:
         print(str(exc), file=sys.stderr)
         sys.exit(1)
@@ -263,13 +269,6 @@ def main() -> None:
     else:
         print("Cancelled.")
         sys.exit(0)
-
-    selected_files: list[str] | None
-
-    if args.all_files:
-        selected_files = None
-    else:
-        selected_files = prompt_file_selection(changed_files)
 
     if args.dry_run:
         print("\n🧪 Dry run enabled.")

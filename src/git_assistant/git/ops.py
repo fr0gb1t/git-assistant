@@ -93,12 +93,6 @@ def get_changed_files(cwd: Path | None = None) -> list[str]:
 
     return files
 
-def get_unstaged_diff(cwd=None) -> str:
-    """
-    Return current git diff (unstaged changes).
-    """
-    return run_git_command(["diff"], cwd=cwd)
-
 def git_add_all(cwd: Path | None = None) -> None:
     """
     Stage all changes in the current repository.
@@ -121,11 +115,34 @@ def git_commit(message: str, cwd: Path | None = None) -> str:
     """
     return run_git_command(["commit", "-m", message], cwd=cwd)
 
-def get_staged_diff(cwd: Path | None = None) -> str:
+def get_unstaged_diff(
+    cwd: Path | None = None,
+    file_paths: list[str] | None = None,
+) -> str:
     """
-    Return staged diff (git diff --cached).
+    Return unstaged diff, optionally limited to specific file paths.
     """
-    return run_git_command(["diff", "--cached"], cwd=cwd)
+    args = ["diff"]
+
+    if file_paths:
+        args.extend(["--", *file_paths])
+
+    return run_git_command(args, cwd=cwd)
+
+
+def get_staged_diff(
+    cwd: Path | None = None,
+    file_paths: list[str] | None = None,
+) -> str:
+    """
+    Return staged diff, optionally limited to specific file paths.
+    """
+    args = ["diff", "--cached"]
+
+    if file_paths:
+        args.extend(["--", *file_paths])
+
+    return run_git_command(args, cwd=cwd)
 
 
 def get_combined_diff(cwd: Path | None = None) -> str:
