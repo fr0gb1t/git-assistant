@@ -8,3 +8,6 @@
 
 ### Documentation
 - update changelog.mdEmptyEntriesRemoved
+
+### Changed
+- filter selectable files in CLI output

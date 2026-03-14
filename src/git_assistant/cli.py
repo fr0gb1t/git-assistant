@@ -115,6 +115,13 @@ def restore_auto_included_files(cwd: Path, snapshot: dict[str, str | None]) -> N
         else:
             abs_path.write_text(original_content, encoding="utf-8")
 
+def filter_selectable_files(changed_files: list[str]) -> list[str]:
+    """
+    Return only files that should be visible/selectable to the user.
+    """
+    auto_files = set(AUTO_INCLUDED_FILES)
+    return [file_path for file_path in changed_files if file_path not in auto_files]
+
 def build_ai_config(args: argparse.Namespace, cwd: Path) -> AIConfig:
     """
     Build the final AI config using:
@@ -340,16 +347,24 @@ def main() -> None:
         print("No changes detected.")
         sys.exit(0)
 
+    selectable_files = filter_selectable_files(changed_files)
+
+    if not selectable_files:
+        print("No selectable user files detected.")
+        print("Only auto-included files are currently modified.")
+        sys.exit(0)
+
     ai_config = build_ai_config(args, cwd)
 
     print(f"📦 Repository: {repo_root}")
 
     if args.all_files:
-        print_changed_files(changed_files)
-        selected_files = None
+        print_changed_files(selectable_files)
+        selected_files = list(selectable_files)
     else:
-        print_numbered_files(changed_files)
-        selected_files = prompt_file_selection(changed_files)
+        print_numbered_files(selectable_files)
+        prompted_selection = prompt_file_selection(selectable_files)
+        selected_files = list(selectable_files) if prompted_selection is None else prompted_selection
 
     print()
     print_selected_files(selected_files)
@@ -385,45 +400,27 @@ def main() -> None:
             sys.exit(0)
 
     auto_files_snapshot = snapshot_auto_included_files(cwd)
-    changelog_path = update_changelog(cwd, final_message)
+    update_changelog(cwd, final_message)
 
-    files_to_stage: list[str] | None
-    if selected_files is None:
-        files_to_stage = None
-    else:
-        files_to_stage = list(selected_files)
-        if selected_files is None:
-            files_to_stage = None
-        else:
-            files_to_stage = list(selected_files)
+    files_to_stage = list(selected_files)
 
-            if changelog_path is not None and changelog_path not in files_to_stage:
-                files_to_stage.append(changelog_path)
-
-            for auto_file in AUTO_INCLUDED_FILES:
-                if auto_file not in files_to_stage:
-                    files_to_stage.append(auto_file)
+    for auto_file in AUTO_INCLUDED_FILES:
+        if auto_file not in files_to_stage and (cwd / auto_file).exists():
+            files_to_stage.append(auto_file)
 
     if args.dry_run:
         restore_auto_included_files(cwd, auto_files_snapshot)
 
         print("\n🧪 Dry run enabled.")
-        if files_to_stage is None:
-            print("Files to include: all changed files")
-        else:
-            print("Files to include:")
-            for file_path in files_to_stage:
-                print(f"  - {file_path}")
+        print("Files to include:")
+        for file_path in files_to_stage:
+            print(f"  - {file_path}")
         print("No commit was created.")
         print(f"Suggested final commit message: {final_message}")
         sys.exit(0)
 
     try:
-        if files_to_stage is None:
-            git_add_all(cwd)
-        else:
-            git_add_files(files_to_stage, cwd)
-
+        git_add_files(files_to_stage, cwd)
         commit_output = git_commit(final_message, cwd)
     except GitError as exc:
         restore_auto_included_files(cwd, auto_files_snapshot)
