@@ -28,6 +28,7 @@ class CommitMessageResult:
     was_truncated: bool
     staged_included: bool
     unstaged_included: bool
+    untracked_included: bool
 
 
 REPAIR_PROMPT_TEMPLATE = """
@@ -116,4 +117,5 @@ def generate_commit_message(
         was_truncated=diff_context.was_truncated,
         staged_included=diff_context.staged_included,
         unstaged_included=diff_context.unstaged_included,
+        untracked_included=diff_context.untracked_included,
     )

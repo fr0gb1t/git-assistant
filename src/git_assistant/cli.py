@@ -130,8 +130,8 @@ def print_context_summary(result: CommitMessageResult) -> None:
     print("🧠 Context summary:")
     print(f"  - staged changes: {'yes' if result.staged_included else 'no'}")
     print(f"  - unstaged changes: {'yes' if result.unstaged_included else 'no'}")
+    print(f"  - untracked files: {'yes' if result.untracked_included else 'no'}")
     print(f"  - truncated: {'yes' if result.was_truncated else 'no'}")
-
 
 def parse_file_selection(user_input: str, max_index: int) -> list[int]:
     """

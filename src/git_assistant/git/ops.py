@@ -162,3 +162,40 @@ def get_combined_diff(cwd: Path | None = None) -> str:
         parts.append("UNSTAGED CHANGES:\n" + unstaged)
 
     return "\n\n".join(parts)
+
+def get_untracked_files(cwd: Path | None = None) -> list[str]:
+    """
+    Return untracked files from `git status --porcelain`.
+    """
+    status = get_status_short(cwd=cwd)
+
+    if not status:
+        return []
+
+    files: list[str] = []
+
+    for raw_line in status.splitlines():
+        line = raw_line.rstrip()
+
+        if not line.startswith("?? "):
+            continue
+
+        path_part = line[3:].strip()
+        files.append(path_part)
+
+    return files
+
+
+def read_file_contents(file_path: str, cwd: Path | None = None) -> str:
+    """
+    Read file contents from disk as text.
+    """
+    base_dir = cwd or Path.cwd()
+    absolute_path = base_dir / file_path
+
+    try:
+        return absolute_path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        raise GitError(f"Could not read untracked file as UTF-8 text: {file_path}")
+    except OSError as exc:
+        raise GitError(f"Could not read file '{file_path}': {exc}") from exc
