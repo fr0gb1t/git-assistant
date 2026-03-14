@@ -186,19 +186,35 @@ def get_untracked_files(cwd: Path | None = None) -> list[str]:
     return files
 
 
-def read_file_contents(file_path: str, cwd: Path | None = None) -> str:
+def read_file_contents(
+    file_path: str,
+    cwd: Path | None = None,
+    max_chars: int = 4000,
+) -> str:
     """
-    Read file contents from disk as text.
+    Read a text file from disk and return truncated content.
+
+    Raises:
+        GitError: If the file cannot be read as text.
     """
     base_dir = cwd or Path.cwd()
-    absolute_path = base_dir / file_path
+    abs_path = base_dir / file_path
 
     try:
-        return absolute_path.read_text(encoding="utf-8")
-    except UnicodeDecodeError:
-        raise GitError(f"Could not read untracked file as UTF-8 text: {file_path}")
+        content = abs_path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        raise GitError(f"File is not valid UTF-8 text: {file_path}") from exc
     except OSError as exc:
-        raise GitError(f"Could not read file '{file_path}': {exc}") from exc
+        raise GitError(f"Could not read file: {file_path}") from exc
+
+    if len(content) > max_chars:
+        omitted = len(content) - max_chars
+        content = (
+            content[:max_chars].rstrip()
+            + f"\n\n[TRUNCATED: omitted {omitted} characters from untracked file]\n"
+        )
+
+    return content
     
 def is_text_file(file_path: str, cwd: Path | None = None) -> bool:
     """
