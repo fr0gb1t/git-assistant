@@ -56,7 +56,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--debug",
         action="store_true",
-        help="Enable debug output for provider responses and prompt diagnostics",
+        help="Enable debug output for provider and prompt diagnostics",
     )
 
     return parser.parse_args()
@@ -74,7 +74,6 @@ def build_ai_config(args: argparse.Namespace, cwd: Path) -> AIConfig:
         sys.exit(1)
 
     ai_config = app_config.ai
-    
 
     if args.provider is not None:
         ai_config.provider = args.provider
@@ -88,14 +87,9 @@ def build_ai_config(args: argparse.Namespace, cwd: Path) -> AIConfig:
     if args.timeout is not None:
         ai_config.timeout = args.timeout
 
-    if args.debug is not None:
-        ai_config.debug = args.debug
+    ai_config.debug = args.debug
 
     return ai_config
-
-
-def print_header(title: str) -> None:
-    print(f"\n=== {title} ===")
 
 
 def print_ai_config(ai_config: AIConfig) -> None:
@@ -113,14 +107,14 @@ def print_changed_files(changed_files: list[str]) -> None:
 
 
 def print_context_summary(result: CommitMessageResult) -> None:
-    print("🧠 Context sent to AI provider:")
+    print("🧠 Context summary:")
     print(f"  - staged changes: {'yes' if result.staged_included else 'no'}")
     print(f"  - unstaged changes: {'yes' if result.unstaged_included else 'no'}")
     print(f"  - truncated: {'yes' if result.was_truncated else 'no'}")
 
 
 def prompt_user_action() -> str:
-    print("\n⚙️ What do you want to do?")
+    print("\n⚙ What do you want to do?")
     print("[1] Commit with this message")
     print("[2] Edit message")
     print("[3] Cancel")
@@ -147,19 +141,16 @@ def main() -> None:
         print("No changes detected.")
         sys.exit(0)
 
-    print_header("Repository")
-    print(f"📦 {repo_root}")
-
-    print_header("Changes")
-    print_changed_files(changed_files)
-
     ai_config = build_ai_config(args, cwd)
 
-    print_header("AI Setup")
-    print_ai_config(ai_config)
+    print(f"📦 Repository: {repo_root}")
+    print_changed_files(changed_files)
 
-    print_header("Generation")
-    print(f"✨ Generating commit message using {ai_config.provider}...")
+    if ai_config.debug:
+        print()
+        print_ai_config(ai_config)
+
+    print("\n✨ Generating commit message...")
 
     try:
         result = generate_commit_message(cwd, ai_config=ai_config)
@@ -167,10 +158,11 @@ def main() -> None:
         print(str(exc), file=sys.stderr)
         sys.exit(1)
 
-    print()
-    print_context_summary(result)
+    if ai_config.debug:
+        print()
+        print_context_summary(result)
 
-    print_header("Suggested Commit")
+    print("\n💬 Suggested commit:")
     print(result.message)
 
     action = prompt_user_action()
@@ -194,6 +186,5 @@ def main() -> None:
         print(f"Git error while creating commit: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    print_header("Result")
-    print("✅ Commit created successfully.\n")
+    print("\n✅ Commit created successfully.\n")
     print(commit_output)

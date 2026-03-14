@@ -31,3 +31,10 @@ class AIConfig:
     host: str = "http://127.0.0.1:11434"
     timeout: int = 120
     debug: bool = False
+
+def debug_print(config: AIConfig, message: str) -> None:
+    """
+    Print debug information if debug mode is enabled.
+    """
+    if config.debug:
+        print(f"[DEBUG] {message}")

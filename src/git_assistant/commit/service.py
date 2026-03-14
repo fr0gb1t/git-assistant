@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from git_assistant.ai.base import AIConfig, AIProviderError
+from git_assistant.ai.base import AIConfig, AIProviderError, debug_print
 from git_assistant.ai.factory import get_ai_provider
 from git_assistant.commit.diff_context import DiffContextBuilder
 from git_assistant.commit.message import (
@@ -29,6 +29,7 @@ class CommitMessageResult:
     staged_included: bool
     unstaged_included: bool
 
+
 REPAIR_PROMPT_TEMPLATE = """
 The previous response did not follow the required format.
 
@@ -46,6 +47,7 @@ Rules:
 Previous invalid response:
 {invalid_response}
 """
+
 
 def generate_commit_message(
     cwd: Path,
@@ -72,6 +74,10 @@ def generate_commit_message(
 
     prompt = build_prompt(changed_files, diff_context.text)
 
+    debug_print(config, f"files_analyzed={len(changed_files)}")
+    debug_print(config, f"diff_truncated={diff_context.was_truncated}")
+    debug_print(config, f"prompt_size={len(SYSTEM_PROMPT) + len(prompt)}")
+
     try:
         provider = get_ai_provider(config)
 
@@ -80,16 +86,13 @@ def generate_commit_message(
             user_prompt=prompt,
         )
 
-        if config.debug:
-            print("\n[DEBUG] Initial provider output:")
-            print(repr(raw_response))
-
         try:
             cleaned_message = clean_message(raw_response)
         except ValueError:
-            if config.debug:
-                print("[DEBUG] Initial output did not match Conventional Commit format.")
-                print("[DEBUG] Retrying with repair prompt...")
+            debug_print(
+                config,
+                "initial_output_invalid=True, retrying_with_repair_prompt=True",
+            )
 
             repair_prompt = REPAIR_PROMPT_TEMPLATE.format(
                 invalid_response=raw_response
@@ -99,10 +102,6 @@ def generate_commit_message(
                 system_prompt=SYSTEM_PROMPT,
                 user_prompt=repair_prompt,
             )
-
-            if config.debug:
-                print("\n[DEBUG] Repaired provider output:")
-                print(repr(repaired_response))
 
             cleaned_message = clean_message(repaired_response)
 

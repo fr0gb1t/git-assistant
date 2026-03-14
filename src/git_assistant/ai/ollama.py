@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from pprint import pformat
-
 import requests
 
-from git_assistant.ai.base import AIConfig, AIProvider, AIProviderError
+from git_assistant.ai.base import AIConfig, AIProvider, AIProviderError, debug_print
 
 
 class OllamaProvider(AIProvider):
@@ -28,13 +26,6 @@ class OllamaProvider(AIProvider):
             "stream": False,
         }
 
-        if self.config.debug:
-            print("\n[DEBUG] Ollama request")
-            print(f"[DEBUG] URL: {url}")
-            print(f"[DEBUG] Model: {self.config.model}")
-            print(f"[DEBUG] System prompt length: {len(system_prompt)}")
-            print(f"[DEBUG] User prompt length: {len(user_prompt)}")
-
         try:
             response = requests.post(
                 url,
@@ -51,11 +42,13 @@ class OllamaProvider(AIProvider):
 
         data = response.json()
 
-        if self.config.debug:
-            print("\n[DEBUG] Raw Ollama response:")
-            print(pformat(data, width=100))
-
         raw_response = data.get("response", "")
+        done_reason = data.get("done_reason", "unknown")
+        has_context = "context" in data
+
+        debug_print(self.config, f"provider={self.__class__.__name__}")
+        debug_print(self.config, f"done_reason={done_reason}")
+        debug_print(self.config, f"has_context={has_context}")
 
         if not isinstance(raw_response, str):
             raise AIProviderError(
@@ -63,10 +56,15 @@ class OllamaProvider(AIProvider):
                 f"Response field type: {type(raw_response).__name__}"
             )
 
+        debug_print(self.config, f"response_length={len(raw_response)}")
+        debug_print(
+            self.config,
+            f"response_preview={repr(raw_response[:200])}",
+        )
+
         result = raw_response.strip()
 
         if not result:
-            done_reason = data.get("done_reason", "unknown")
             raise AIProviderError(
                 f"Ollama returned no usable text for model '{self.config.model}' "
                 f"(done_reason={done_reason}). "
