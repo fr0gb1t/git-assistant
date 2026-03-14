@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from pathlib import Path
+from typing import Dict
 
 from git_assistant.ai.base import AIConfig
 from git_assistant.commit.service import (
@@ -80,6 +82,38 @@ def parse_args() -> argparse.Namespace:
 
     return parser.parse_args()
 
+def snapshot_auto_included_files(cwd: Path) -> dict[str, str | None]:
+    """
+    Snapshot the current state of auto-included files.
+
+    Returns:
+        dict[path, content_or_none]
+        - None means the file did not exist.
+    """
+    snapshot: dict[str, str | None] = {}
+
+    for file_path in AUTO_INCLUDED_FILES:
+        abs_path = cwd / file_path
+        if abs_path.exists():
+            snapshot[file_path] = abs_path.read_text(encoding="utf-8")
+        else:
+            snapshot[file_path] = None
+
+    return snapshot
+
+
+def restore_auto_included_files(cwd: Path, snapshot: dict[str, str | None]) -> None:
+    """
+    Restore auto-included files to their original state.
+    """
+    for file_path, original_content in snapshot.items():
+        abs_path = cwd / file_path
+
+        if original_content is None:
+            if abs_path.exists():
+                abs_path.unlink()
+        else:
+            abs_path.write_text(original_content, encoding="utf-8")
 
 def build_ai_config(args: argparse.Namespace, cwd: Path) -> AIConfig:
     """
@@ -350,6 +384,7 @@ def main() -> None:
             print("Cancelled.")
             sys.exit(0)
 
+    auto_files_snapshot = snapshot_auto_included_files(cwd)
     changelog_path = update_changelog(cwd, final_message)
 
     files_to_stage: list[str] | None
@@ -370,6 +405,8 @@ def main() -> None:
                     files_to_stage.append(auto_file)
 
     if args.dry_run:
+        restore_auto_included_files(cwd, auto_files_snapshot)
+
         print("\n🧪 Dry run enabled.")
         if files_to_stage is None:
             print("Files to include: all changed files")
@@ -389,6 +426,7 @@ def main() -> None:
 
         commit_output = git_commit(final_message, cwd)
     except GitError as exc:
+        restore_auto_included_files(cwd, auto_files_snapshot)
         print(f"Git error while creating commit: {exc}", file=sys.stderr)
         sys.exit(1)
 
