@@ -31,7 +31,7 @@ suggestion workflow** while staying fast, safe, and developer‑friendly.
 - 📝 **Automatic `CHANGELOG.md` updates**
 - 🚀 **Release suggestions**
   - rule‑based evaluation
-    - AI‑based evaluation
+  - AI‑based evaluation
 - 🏷 Version detection via:
   - latest Git tag
   - changelog fallback

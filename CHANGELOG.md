@@ -4,6 +4,7 @@
 
 ### Documentation
 - update README section headers
+- correct indentation in README.md
 
 ## [0.1.0] - 2026-03-15
 
