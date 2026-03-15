@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Documentation
+- update README section headers
+
+## [0.1.0] - 2026-03-15
+
 ### Added
 - add changelog-based release suggestion functionality
 - add auto-included file snapshot and restore functionality

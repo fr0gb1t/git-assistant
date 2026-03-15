@@ -151,7 +151,7 @@ Version detection priority:
 
 ------------------------------------------------------------------------
 
-# ⚙ Configuration
+## ⚙ Configuration
 
 Create a `.git-assistant.toml` file:
 
@@ -165,7 +165,7 @@ timeout = 120
 
 ------------------------------------------------------------------------
 
-# 🧠 AI Providers
+## 🧠 AI Providers
 
 Currently supported:
 
@@ -180,7 +180,7 @@ future.
 
 ------------------------------------------------------------------------
 
-# 🧪 Example Output
+## 🧪 Example Output
 
 ``` text
 📦 Repository: /home/user/project
@@ -208,7 +208,7 @@ feat(release): add changelog-based release suggestion functionality
 
 ------------------------------------------------------------------------
 
-# 🛣 Roadmap
+## 🛣 Roadmap
 
 Planned features:
 
@@ -221,6 +221,6 @@ Planned features:
 
 ------------------------------------------------------------------------
 
-# 📄 License
+## 📄 License
 
 MIT
