@@ -6,6 +6,7 @@
 - add changelog-based release suggestion functionality
 - add auto-included file snapshot and restore functionality
 - integrate changelog updates in commit workflow
+- add debug option to release suggestion printing
 
 ### Documentation
 - update changelog.mdEmptyEntriesRemoved

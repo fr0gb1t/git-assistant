@@ -329,23 +329,30 @@ def update_changelog(cwd: Path, commit_message: str) -> str | None:
     print(f"📝 CHANGELOG updated: {changelog_path.name}")
     return changelog_path.name
 
-def print_release_suggestion(cwd: Path) -> None:
+def print_release_suggestion(cwd: Path, debug: bool = False) -> None:
     """
     Evaluate and print a release suggestion based on CHANGELOG.md.
     """
     changelog_path = get_changelog_path(cwd)
     suggestion = evaluate_release(changelog_path)
 
-    print("\n🚀 Release suggestion:")
-    print(f"  - should release: {'yes' if suggestion.should_release else 'no'}")
+    if not debug and not suggestion.should_release:
+        return
 
-    if suggestion.release_type is not None:
-        print(f"  - type: {suggestion.release_type}")
+    if debug:
+        print("\n🚀 Release suggestion:")
+        print(f"  - should release: {'yes' if suggestion.should_release else 'no'}")
+        if suggestion.release_type is not None:
+            print(f"  - type: {suggestion.release_type}")
+        if suggestion.next_version is not None:
+            print(f"  - next version: {suggestion.next_version}")
+        print(f"  - reason: {suggestion.reason}")
+        return
 
-    if suggestion.next_version is not None:
-        print(f"  - next version: {suggestion.next_version}")
-
-    print(f"  - reason: {suggestion.reason}")
+    print(
+        f"\n🚀 Suggested release: {suggestion.release_type} → {suggestion.next_version}"
+    )
+    print(f"   Reason: {suggestion.reason}")
 
 def main() -> None:
     args = parse_args()
@@ -450,7 +457,7 @@ def main() -> None:
     print("\n✅ Commit created successfully.\n")
     print(commit_output)
 
-    print_release_suggestion(cwd)
+    print_release_suggestion(cwd, debug=ai_config.debug)
 
 if __name__ == "__main__":
     main()
