@@ -436,14 +436,17 @@ def main() -> None:
             files_to_stage.append(auto_file)
 
     if args.dry_run:
-        restore_auto_included_files(cwd, auto_files_snapshot)
+        print("\n🧪 Dry run enabled: no commit was created.")
+        print(f"💬 Suggested final commit message: {final_message}")
 
-        print("\n🧪 Dry run enabled.")
-        print("Files to include:")
-        for file_path in files_to_stage:
-            print(f"  - {file_path}")
-        print("No commit was created.")
-        print(f"Suggested final commit message: {final_message}")
+        if files_to_stage:
+            print("\nFiles to include:")
+            for file_path in files_to_stage:
+                print(f"  - {file_path}")
+
+        print_release_suggestion(cwd, debug=ai_config.debug)
+
+        restore_auto_included_files(cwd, auto_files_snapshot)
         sys.exit(0)
 
     try:

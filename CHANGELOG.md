@@ -7,6 +7,7 @@
 - add auto-included file snapshot and restore functionality
 - integrate changelog updates in commit workflow
 - add debug option to release suggestion printing
+- add dry run output improvements
 
 ### Documentation
 - update changelog.mdEmptyEntriesRemoved
