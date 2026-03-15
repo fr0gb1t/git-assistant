@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 
 from git_assistant.release.versioning import bump_version
-
+from git_assistant.git.ops import get_latest_tag
 
 UNRELEASED_HEADER = "## [Unreleased]"
 VERSION_HEADER_RE = re.compile(r"^## \[(\d+\.\d+\.\d+)\]", re.MULTILINE)
@@ -36,6 +36,22 @@ def extract_unreleased_block(changelog_text: str) -> str:
     end = len(UNRELEASED_HEADER) + next_header_match.start()
     return tail[:end]
 
+def get_current_version(cwd: Path, changelog_text: str) -> str:
+    """
+    Return the current version using this priority:
+    1. latest Git tag
+    2. latest version found in CHANGELOG.md
+    3. default 0.1.0
+    """
+    latest_tag = get_latest_tag(cwd)
+    if latest_tag is not None:
+        return latest_tag
+
+    matches = VERSION_HEADER_RE.findall(changelog_text)
+    if matches:
+        return matches[0]
+
+    return "0.1.0"
 
 def get_current_version_from_changelog(changelog_text: str) -> str:
     """
@@ -77,7 +93,7 @@ def count_section_entries(unreleased_block: str, section_name: str) -> int:
     return count
 
 
-def evaluate_release(changelog_path: Path) -> ReleaseSuggestion:
+def evaluate_release(cwd: Path, changelog_path: Path) -> ReleaseSuggestion:
     """
     Evaluate whether the current Unreleased section suggests a release.
     """
@@ -116,7 +132,7 @@ def evaluate_release(changelog_path: Path) -> ReleaseSuggestion:
         + maintenance_count
     )
 
-    current_version = get_current_version_from_changelog(changelog_text)
+    current_version = get_current_version(cwd, changelog_text)
 
     if total_entries < 3:
         return ReleaseSuggestion(

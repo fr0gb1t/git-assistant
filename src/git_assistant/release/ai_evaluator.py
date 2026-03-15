@@ -4,14 +4,9 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from git_assistant.ai.base import AIConfig, AIProviderError
+from git_assistant.ai.base import AIConfig, debug_print
 from git_assistant.ai.factory import get_ai_provider
-from git_assistant.ai.base import debug_print
-from git_assistant.release.evaluator import (
-    ReleaseSuggestion,
-    extract_unreleased_block,
-    get_current_version_from_changelog,
-)
+from git_assistant.release.evaluator import extract_unreleased_block, get_current_version
 from git_assistant.release.versioning import bump_version
 
 
@@ -69,7 +64,9 @@ def parse_ai_release_response(raw_response: str, current_version: str) -> AIRele
     try:
         data = json.loads(raw_response)
     except json.JSONDecodeError as exc:
-        raise ValueError(f"AI release evaluator did not return valid JSON: {raw_response}") from exc
+        raise ValueError(
+            f"AI release evaluator did not return valid JSON: {raw_response}"
+        ) from exc
 
     should_release = data.get("should_release")
     release_type = data.get("release_type")
@@ -95,7 +92,6 @@ def parse_ai_release_response(raw_response: str, current_version: str) -> AIRele
         reason=reason.strip(),
     )
 
-
 def evaluate_release_with_ai(
     changelog_path: Path,
     ai_config: AIConfig,
@@ -119,10 +115,13 @@ def evaluate_release_with_ai(
             reason="No [Unreleased] section found.",
         )
 
-    current_version = get_current_version_from_changelog(changelog_text)
+    current_version = get_current_version(changelog_path.parent, changelog_text)
     prompt = build_release_evaluation_prompt(current_version, unreleased_block)
 
-    debug_print(ai_config, f"release_ai_prompt_size={len(RELEASE_EVALUATION_SYSTEM_PROMPT) + len(prompt)}")
+    debug_print(
+        ai_config,
+        f"release_ai_prompt_size={len(RELEASE_EVALUATION_SYSTEM_PROMPT) + len(prompt)}",
+    )
 
     provider = get_ai_provider(ai_config)
     raw_response = provider.generate(

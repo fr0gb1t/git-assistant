@@ -15,9 +15,13 @@ class SemVer:
 
 def parse_version(version: str) -> SemVer:
     """
-    Parse a semantic version string like '0.1.0'.
+    Parse a semantic version string like '0.1.0' or 'v0.1.0'.
     """
-    parts = version.strip().split(".")
+    normalized = version.strip()
+    if normalized.startswith("v"):
+        normalized = normalized[1:]
+
+    parts = normalized.split(".")
     if len(parts) != 3:
         raise ValueError(f"Invalid semantic version: {version}")
 
@@ -27,7 +31,6 @@ def parse_version(version: str) -> SemVer:
         raise ValueError(f"Invalid semantic version: {version}") from exc
 
     return SemVer(major=major, minor=minor, patch=patch)
-
 
 def bump_version(current: str, release_type: str) -> str:
     """

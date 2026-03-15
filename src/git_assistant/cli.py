@@ -6,7 +6,7 @@ from pathlib import Path
 from pathlib import Path
 from typing import Dict
 
-from git_assistant.ai.base import AIConfig
+from git_assistant.ai.base import AIConfig, AIProviderError
 from git_assistant.commit.service import (
     CommitMessageGenerationError,
     CommitMessageResult,
@@ -334,9 +334,15 @@ def update_changelog(cwd: Path, commit_message: str) -> str | None:
 def print_release_suggestion(cwd: Path, debug: bool = False) -> None:
     """
     Evaluate and print a release suggestion based on CHANGELOG.md.
+
+    Normal mode:
+        only prints when a release is suggested.
+
+    Debug mode:
+        always prints the full release evaluation.
     """
     changelog_path = get_changelog_path(cwd)
-    suggestion = evaluate_release(changelog_path)
+    suggestion = evaluate_release(cwd, changelog_path)
 
     if not debug and not suggestion.should_release:
         return
@@ -354,7 +360,7 @@ def print_release_suggestion(cwd: Path, debug: bool = False) -> None:
     print(
         f"\n🚀 Suggested release: {suggestion.release_type} → {suggestion.next_version}"
     )
-    print(f"   Reason: {suggestion.reason}")
+    print(f"Reason: {suggestion.reason}")
 
 def print_ai_release_suggestion(cwd: Path, ai_config: AIConfig) -> None:
     """
@@ -391,7 +397,7 @@ def print_ai_release_suggestion(cwd: Path, ai_config: AIConfig) -> None:
     print(
         f"\n🤖 AI suggested release: {suggestion.release_type} → {suggestion.next_version}"
     )
-    print(f"   Reason: {suggestion.reason}")
+    print(f"Reason: {suggestion.reason}")
 
 def main() -> None:
     args = parse_args()
