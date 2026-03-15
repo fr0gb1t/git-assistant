@@ -13,6 +13,7 @@
 
 ### Documentation
 - update changelog.mdEmptyEntriesRemoved
+- update README with new features and installation instructions
 
 ### Changed
 - filter selectable files in CLI output
