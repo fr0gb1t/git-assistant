@@ -8,6 +8,7 @@
 - integrate changelog updates in commit workflow
 - add debug option to release suggestion printing
 - add dry run output improvements
+- add AI-based release suggestion evaluation and output
 
 ### Documentation
 - update changelog.mdEmptyEntriesRemoved
