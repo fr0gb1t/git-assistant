@@ -17,3 +17,4 @@
 - filter selectable files in CLI output
 - restructure entry insertion logic
 - unify version resolution across evaluator and AI release logic
+- clarify commit message guidelines
