@@ -12,3 +12,4 @@
 
 ### Changed
 - filter selectable files in CLI output
+- restructure entry insertion logic
