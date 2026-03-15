@@ -58,9 +58,9 @@ def get_repo_root(cwd: Path | None = None) -> Path:
 
 def get_status_short(cwd: Path | None = None) -> str:
     """
-    Return the raw output of `git status --porcelain`.
+    Return the raw output of `git status --porcelain --untracked-files=all`.
     """
-    return run_git_command(["status", "--porcelain"], cwd=cwd)
+    return run_git_command(["status", "--porcelain", "--untracked-files=all"], cwd=cwd)
 
 
 def get_changed_files(cwd: Path | None = None) -> list[str]:
