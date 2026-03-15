@@ -5,7 +5,7 @@ from pathlib import Path
 
 from git_assistant.ai.base import AIConfig, AIProviderError, debug_print
 from git_assistant.ai.factory import get_ai_provider
-from git_assistant.commit.diff_context import DiffContextBuilder
+from git_assistant.context.diff_context import DiffContextBuilder
 from git_assistant.commit.message import (
     SYSTEM_PROMPT,
     build_prompt,

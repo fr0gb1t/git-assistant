@@ -18,3 +18,4 @@
 - restructure entry insertion logic
 - unify version resolution across evaluator and AI release logic
 - clarify commit message guidelines
+- move diff context builder to new module and update files in repo context

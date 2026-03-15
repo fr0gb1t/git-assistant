@@ -2,6 +2,8 @@
 __pycache__/
 *.py[codz]
 *$py.class
+*.pyc
+git_assistant.egg-info/
 
 # C extensions
 *.so

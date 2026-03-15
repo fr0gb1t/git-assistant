@@ -34,9 +34,9 @@ class DiffContextBuilder:
     def __init__(
         self,
         *,
-        max_chars: int = 12000,
-        section_max_chars: int = 6000,
-        untracked_file_max_chars: int = 3000,
+        max_chars: int = 120000,
+        section_max_chars: int = 60000,
+        untracked_file_max_chars: int = 30000,
     ) -> None:
         self.max_chars = max_chars
         self.section_max_chars = section_max_chars

@@ -24,6 +24,7 @@ FORMAT RULES:
 - Include a scope when the change clearly affects a single module (e.g. cli, release, ai, git, changelog).
 - Prefer concise messages.
 - The first line should ideally be ≤ 72 characters.
+- Prefer repository module names as scopes when applicable.
 
 CONTENT RULES:
 - Focus on the purpose of the change, not implementation details.
