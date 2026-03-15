@@ -6,6 +6,7 @@ from pathlib import Path
 from git_assistant.ai.base import AIConfig, AIProviderError, debug_print
 from git_assistant.ai.factory import get_ai_provider
 from git_assistant.context.diff_context import DiffContextBuilder
+from git_assistant.context.repo_context import build_repo_tree
 from git_assistant.commit.message import (
     SYSTEM_PROMPT,
     build_prompt,
@@ -74,11 +75,26 @@ def generate_commit_message(
             "Diff is empty (no staged or unstaged content detected)."
         )
 
-    prompt = build_prompt(changed_files, diff_context.text)
+    repo_tree = build_repo_tree(cwd)
+
+    prompt = build_prompt(
+        changed_files=changed_files,
+        diff=diff_context.text,
+        repo_tree=repo_tree,
+    )
+
+    debug_print(config, "\n----- SYSTEM PROMPT BEGIN -----")
+    debug_print(config, SYSTEM_PROMPT[:4000])
+    debug_print(config, "\n----- SYSTEM PROMPT END -----")
+
+    debug_print(config, "\n----- AI PROMPT BEGIN -----")
+    debug_print(config, prompt[:4000])
+    debug_print(config, "----- AI PROMPT END -----\n")
 
     debug_print(config, f"files_analyzed={len(changed_files)}")
     debug_print(config, f"diff_truncated={diff_context.was_truncated}")
     debug_print(config, f"prompt_size={len(SYSTEM_PROMPT) + len(prompt)}")
+
 
     try:
         provider = get_ai_provider(config)

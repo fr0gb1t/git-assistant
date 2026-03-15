@@ -9,6 +9,7 @@
 - add debug option to release suggestion printing
 - add dry run output improvements
 - add AI-based release suggestion evaluation and output
+- add repository structure context to AI prompt
 
 ### Documentation
 - update changelog.mdEmptyEntriesRemoved

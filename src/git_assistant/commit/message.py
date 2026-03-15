@@ -52,21 +52,25 @@ CONVENTIONAL_COMMIT_RE = re.compile(
 )
 
 
-def build_prompt(changed_files: list[str], diff: str) -> str:
+def build_prompt(
+    changed_files: list[str],
+    diff: str,
+    repo_tree: str | None = None,
+) -> str:
     """
     Build the user prompt sent to the model.
     """
     files = "\n".join(f"- {f}" for f in changed_files) or "- unknown"
 
-    return f"""
-Analyze the following git repository changes and produce exactly ONE commit message.
+    parts: list[str] = []
 
-Changed files:
-{files}
+    if repo_tree:
+        parts.append(f"Repository structure:\n{repo_tree}")
 
-Diff context:
-{diff}
-"""
+    parts.append(f"Changed files:\n{files}")
+    parts.append(f"Diff context:\n{diff}")
+
+    return "\n\n".join(parts)
 
 
 def clean_message(text: str) -> str:
