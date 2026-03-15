@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 
 from git_assistant.release.versioning import bump_version
-from git_assistant.git.ops import get_latest_tag
+from git_assistant.git.tags import get_latest_git_tag
 
 UNRELEASED_HEADER = "## [Unreleased]"
 VERSION_HEADER_RE = re.compile(r"^## \[(\d+\.\d+\.\d+)\]", re.MULTILINE)
@@ -43,7 +43,7 @@ def get_current_version(cwd: Path, changelog_text: str) -> str:
     2. latest version found in CHANGELOG.md
     3. default 0.1.0
     """
-    latest_tag = get_latest_tag(cwd)
+    latest_tag = get_latest_git_tag(cwd)
     if latest_tag is not None:
         return latest_tag
 

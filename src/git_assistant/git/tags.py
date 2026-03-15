@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from git_assistant.git.ops import run_git_command, GitError
+from git_assistant.git.ops import GitError, run_git_command
 
 
 def git_tag_exists(tag: str, cwd: Path | None = None) -> bool:
@@ -15,6 +15,19 @@ def git_tag_exists(tag: str, cwd: Path | None = None) -> bool:
         return False
 
     return tag in output.split()
+
+
+def get_latest_git_tag(cwd: Path | None = None) -> str | None:
+    """
+    Return the latest reachable Git tag, or None if no tags exist.
+    """
+    try:
+        output = run_git_command(["describe", "--tags", "--abbrev=0"], cwd=cwd)
+    except GitError:
+        return None
+
+    tag = output.strip()
+    return tag or None
 
 
 def create_git_tag(tag: str, cwd: Path | None = None) -> None:

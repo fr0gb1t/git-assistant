@@ -185,18 +185,6 @@ def get_untracked_files(cwd: Path | None = None) -> list[str]:
 
     return files
 
-def get_latest_tag(cwd: Path | None = None) -> str | None:
-    """
-    Return the latest reachable Git tag, or None if no tags exist.
-    """
-    try:
-        output = run_git_command(["describe", "--tags", "--abbrev=0"], cwd=cwd)
-    except GitError:
-        return None
-
-    tag = output.strip()
-    return tag or None
-
 
 def read_file_contents(
     file_path: str,

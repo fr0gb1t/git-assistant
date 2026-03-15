@@ -35,9 +35,10 @@ Rules:
 - Output JSON only.
 - No markdown.
 - No explanation outside JSON.
-- Use "major" only for clearly breaking changes.
+- Use "major" ONLY if the changelog clearly indicates breaking changes, incompatible API changes, or explicit migration-required changes.
+- Do NOT choose "major" for normal feature additions, refactors, maintenance, or accumulated work.
 - Use "minor" for meaningful new features.
-- Use "patch" for fixes, refactors, maintenance, or smaller accumulated changes.
+- Use "patch" for fixes, refactors, maintenance, documentation, testing, or smaller accumulated changes.
 - If there is not enough meaningful change for a release, return:
   {
     "should_release": false,
@@ -89,7 +90,7 @@ def parse_ai_release_response(raw_response: str, current_version: str) -> AIRele
         should_release=should_release,
         release_type=release_type,
         next_version=next_version,
-        reason=reason.strip(),
+        reason=reason.strip().strip('"').strip("'"),
     )
 
 def evaluate_release_with_ai(
