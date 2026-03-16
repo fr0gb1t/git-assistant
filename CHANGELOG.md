@@ -5,6 +5,9 @@
 ### Added
 - generate initial README.md when none exists in a project
 
+### Changed
+- wrap main logic in try-except block
+
 ## [0.3.0] - 2026-03-16
 
 ### Changed

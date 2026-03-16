@@ -669,56 +669,63 @@ def main() -> None:
 
     managed_files_snapshot = snapshot_managed_files(cwd)
 
-    update_changelog(cwd, final_message)
-
-    readme_applied = maybe_handle_readme_update(cwd, ai_config)
-
-    heuristic_suggestion, ai_suggestion, release_decision = evaluate_release_suggestions(
-        cwd,
-        ai_config,
-    )
-
-    files_to_stage = list(selected_files)
-
-    if CHANGELOG_FILE not in files_to_stage and (cwd / CHANGELOG_FILE).exists():
-        files_to_stage.append(CHANGELOG_FILE)
-
-    if readme_applied and "README.md" not in files_to_stage and (cwd / "README.md").exists():
-        files_to_stage.append("README.md")
-
-    if args.dry_run:
-        print("\n🧪 Dry run enabled: no commit was created.")
-        print(f"💬 Suggested final commit message: {final_message}")
-
-        if files_to_stage:
-            print("\nFiles to include:")
-            for file_path in files_to_stage:
-                print(f"  - {file_path}")
-
-        print_release_evaluation_summary(
-            heuristic_suggestion,
-            ai_suggestion,
-            release_decision,
-        )
-
-        print_heuristic_release_suggestion_from_result(
-            heuristic_suggestion,
-            debug=ai_config.debug,
-        )
-        print_ai_release_suggestion_from_result(
-            ai_suggestion,
-            debug=ai_config.debug,
-        )
-
-        restore_managed_files(cwd, managed_files_snapshot)
-        sys.exit(0)
-
     try:
-        git_add_files(files_to_stage, cwd)
-        commit_output = git_commit(final_message, cwd)
-    except GitError as exc:
+        update_changelog(cwd, final_message)
+
+        readme_applied = maybe_handle_readme_update(cwd, ai_config)
+
+        heuristic_suggestion, ai_suggestion, release_decision = evaluate_release_suggestions(
+            cwd,
+            ai_config,
+        )
+
+        files_to_stage = list(selected_files)
+
+        if CHANGELOG_FILE not in files_to_stage and (cwd / CHANGELOG_FILE).exists():
+            files_to_stage.append(CHANGELOG_FILE)
+
+        if readme_applied and "README.md" not in files_to_stage and (cwd / "README.md").exists():
+            files_to_stage.append("README.md")
+
+        if args.dry_run:
+            print("\n🧪 Dry run enabled: no commit was created.")
+            print(f"💬 Suggested final commit message: {final_message}")
+
+            if files_to_stage:
+                print("\nFiles to include:")
+                for file_path in files_to_stage:
+                    print(f"  - {file_path}")
+
+            print_release_evaluation_summary(
+                heuristic_suggestion,
+                ai_suggestion,
+                release_decision,
+            )
+
+            print_heuristic_release_suggestion_from_result(
+                heuristic_suggestion,
+                debug=ai_config.debug,
+            )
+            print_ai_release_suggestion_from_result(
+                ai_suggestion,
+                debug=ai_config.debug,
+            )
+
+            restore_managed_files(cwd, managed_files_snapshot)
+            sys.exit(0)
+
+        try:
+            git_add_files(files_to_stage, cwd)
+            commit_output = git_commit(final_message, cwd)
+        except GitError as exc:
+            print(f"Git error while creating commit: {exc}", file=sys.stderr)
+            sys.exit(1)
+
+    except (SystemExit, KeyboardInterrupt):
+        raise
+    except Exception as exc:
         restore_managed_files(cwd, managed_files_snapshot)
-        print(f"Git error while creating commit: {exc}", file=sys.stderr)
+        print(f"\n❌ Unexpected error: {exc}", file=sys.stderr)
         sys.exit(1)
 
     print("\n✅ Commit created successfully.\n")
