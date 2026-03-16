@@ -145,3 +145,59 @@ def append_to_unreleased(cwd: Path, entry: ChangelogEntry) -> Path:
 
     changelog_path.write_text(updated, encoding="utf-8")
     return changelog_path
+
+def render_version_block(
+    version: str,
+    release_date: str,
+    section_order: list[str],
+    sections: dict[str, list[str]],
+) -> str:
+    """
+    Render a released changelog block from parsed section data.
+    """
+    lines: list[str] = [f"## [{version}] - {release_date}"]
+
+    for section in section_order:
+        entries = sections.get(section, [])
+        if not entries:
+            continue
+
+        lines.append("")
+        lines.append(f"### {section}")
+        for entry in entries:
+            lines.append(f"- {entry}")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def finalize_unreleased_release(cwd: Path, version: str, release_date: str) -> Path:
+    """
+    Replace [Unreleased] contents with an empty section and move its entries
+    into a new released version block.
+    """
+    changelog_path = get_changelog_path(cwd)
+    ensure_changelog_exists(changelog_path)
+
+    content = changelog_path.read_text(encoding="utf-8")
+    before, unreleased_block, after = extract_unreleased_and_rest(content)
+    section_order, sections = parse_unreleased_sections(unreleased_block)
+
+    has_entries = any(sections.get(section) for section in section_order)
+    if not has_entries:
+        return changelog_path
+
+    released_block = render_version_block(version, release_date, section_order, sections)
+    new_unreleased = "## [Unreleased]\n"
+
+    result_parts = [
+        before.rstrip(),
+        new_unreleased.rstrip(),
+        released_block.rstrip(),
+    ]
+
+    if after.strip():
+        result_parts.append(after.rstrip())
+
+    updated = "\n\n".join(part for part in result_parts if part) + "\n"
+    changelog_path.write_text(updated, encoding="utf-8")
+    return changelog_path

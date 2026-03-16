@@ -6,6 +6,9 @@
 - update README section headers
 - correct indentation in README.md
 
+### Added
+- implement auto-release decision and execution logic
+
 ## [0.1.0] - 2026-03-15
 
 ### Added

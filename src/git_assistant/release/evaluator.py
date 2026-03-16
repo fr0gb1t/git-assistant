@@ -41,7 +41,7 @@ def get_current_version(cwd: Path, changelog_text: str) -> str:
     Return the current version using this priority:
     1. latest Git tag
     2. latest version found in CHANGELOG.md
-    3. default 0.1.0
+    3. default 0.0.0
     """
     latest_tag = get_latest_git_tag(cwd)
     if latest_tag is not None:
@@ -51,16 +51,16 @@ def get_current_version(cwd: Path, changelog_text: str) -> str:
     if matches:
         return matches[0]
 
-    return "0.1.0"
+    return "0.0.0"
 
 def get_current_version_from_changelog(changelog_text: str) -> str:
     """
     Return the most recent released version found in the changelog.
-    Defaults to 0.1.0 if none is found.
+    Defaults to 0.0.0 if none is found.
     """
     matches = VERSION_HEADER_RE.findall(changelog_text)
     if not matches:
-        return "0.1.0"
+        return "0.0.0"
 
     return matches[0]
 
