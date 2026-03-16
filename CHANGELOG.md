@@ -5,6 +5,9 @@
 ### Changed
 - update AI evaluator guidelines and logic
 
+### Added
+- add push functionality for releases
+
 ## [0.2.0] - 2026-03-16
 
 ### Documentation

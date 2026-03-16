@@ -21,6 +21,8 @@ from git_assistant.git.ops import (
     git_add_files,
     git_commit,
     is_git_repo,
+    git_push,
+    git_push_tag,
 )
 from git_assistant.release.ai_evaluator import evaluate_release_with_ai
 from git_assistant.release.decision import decide_auto_release
@@ -320,7 +322,8 @@ def apply_release(
 ) -> None:
     """
     Apply a release by closing the Unreleased section,
-    committing the changelog, and creating a tag.
+    committing the changelog, creating a tag, and pushing both
+    the release commit and tag to origin.
     """
     try:
         prepare_release_changelog(cwd, version=version)
@@ -340,7 +343,20 @@ def apply_release(
         print(f"🏷 Created tag: {created_tag}")
     except GitError as exc:
         print(f"Warning: release tag could not be created: {exc}", file=sys.stderr)
+        return
 
+    try:
+        git_push(cwd)
+        print("⬆ Release commit pushed to origin.")
+    except GitError as exc:
+        print(f"Warning: release commit could not be pushed: {exc}", file=sys.stderr)
+        return
+
+    try:
+        git_push_tag(cwd, created_tag)
+        print(f"⬆ Tag pushed to origin: {created_tag}")
+    except GitError as exc:
+        print(f"Warning: release tag could not be pushed: {exc}", file=sys.stderr)
 def generate_and_display_commit_message(
     cwd: Path,
     ai_config: AIConfig,

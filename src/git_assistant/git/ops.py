@@ -228,3 +228,10 @@ def is_text_file(file_path: str, cwd: Path | None = None) -> bool:
         return True
     except (UnicodeDecodeError, OSError):
         return False
+
+def git_push(cwd: Path) -> None:
+    run_git_command(["push", "origin", "HEAD"], cwd)
+
+
+def git_push_tag(cwd: Path, tag: str) -> None:
+    run_git_command(["push", "origin", tag], cwd)
