@@ -100,7 +100,5 @@ Version detection priority:
 ------------------------------------------------------------------------
 ## 🛣 Roadmap
 Planned features:
-- 🔄 **Version bump automation**
 - 🌐 Additional AI providers
 - 🧠 Smarter release intelligence
-- 📣 GitHub release publishing

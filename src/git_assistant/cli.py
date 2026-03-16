@@ -23,6 +23,7 @@ from git_assistant.git.ops import (
     is_git_repo,
     git_push,
     git_push_tag,
+    run_git_command,
 )
 from git_assistant.readme.service import (
     ReadmeUpdateError,
@@ -42,7 +43,6 @@ from git_assistant.release.executor import create_release_tag, prepare_release_c
 CHANGELOG_FILE = "CHANGELOG.md"
 README_FILE = "README.md"
 AUTO_INCLUDED_FILES = [CHANGELOG_FILE]
-SNAPSHOT_MANAGED_FILES = [CHANGELOG_FILE, README_FILE]
 
 
 def parse_args() -> argparse.Namespace:
@@ -97,39 +97,20 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def snapshot_managed_files(cwd: Path) -> dict[str, str | None]:
+def restore_managed_files(cwd: Path) -> None:
     """
-    Snapshot the current state of managed files that may be modified
-    during the workflow (e.g. CHANGELOG.md, README.md).
-
-    Returns:
-        dict[path, content_or_none]
-        - None means the file did not exist.
+    Restore managed files (CHANGELOG.md, README.md) to their last committed
+    state via git checkout. Files that don\'t exist in the last commit are
+    deleted if they were created during this workflow.
     """
-    snapshot: dict[str, str | None] = {}
-
-    for file_path in SNAPSHOT_MANAGED_FILES:
+    for file_path in [CHANGELOG_FILE, README_FILE]:
         abs_path = cwd / file_path
-        if abs_path.exists():
-            snapshot[file_path] = abs_path.read_text(encoding="utf-8")
-        else:
-            snapshot[file_path] = None
-
-    return snapshot
-
-
-def restore_managed_files(cwd: Path, snapshot: dict[str, str | None]) -> None:
-    """
-    Restore managed files to their original state from a snapshot.
-    """
-    for file_path, original_content in snapshot.items():
-        abs_path = cwd / file_path
-
-        if original_content is None:
+        try:
+            run_git_command(["checkout", "--", file_path], cwd=cwd)
+        except GitError:
+            # File not tracked (e.g. newly generated README) — remove it
             if abs_path.exists():
                 abs_path.unlink()
-        else:
-            abs_path.write_text(original_content, encoding="utf-8")
 
 
 def filter_selectable_files(changed_files: list[str]) -> list[str]:
@@ -667,8 +648,6 @@ def main() -> None:
             print("Cancelled.")
             sys.exit(0)
 
-    managed_files_snapshot = snapshot_managed_files(cwd)
-
     try:
         update_changelog(cwd, final_message)
 
@@ -711,7 +690,7 @@ def main() -> None:
                 debug=ai_config.debug,
             )
 
-            restore_managed_files(cwd, managed_files_snapshot)
+            restore_managed_files(cwd)
             sys.exit(0)
 
         try:
@@ -724,7 +703,7 @@ def main() -> None:
     except (SystemExit, KeyboardInterrupt):
         raise
     except Exception as exc:
-        restore_managed_files(cwd, managed_files_snapshot)
+        restore_managed_files(cwd)
         print(f"\n❌ Unexpected error: {exc}", file=sys.stderr)
         sys.exit(1)
 

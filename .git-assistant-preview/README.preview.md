@@ -25,7 +25,10 @@ It is designed to streamline the **entire commit → changelog → release workf
   - Changelog fallback
 - 🔌 Extensible AI provider architecture
 - 📦 Release workflow execution
+  - Pushes releases to remote repositories automatically after successful commits.
 - 🚀 Automatic release creation and pushing to remote repositories
+- 🔄 **Version bump automation**
+  - Automatically detects version bumps based on changelog entries.
 ------------------------------------------------------------------------
 ## ⚡ Quick Usage
 ### Interactive commit workflow
@@ -97,11 +100,5 @@ Version detection priority:
 ------------------------------------------------------------------------
 ## 🛣 Roadmap
 Planned features:
-- 📦 Release workflow execution
-- 🔄 Version bump automation
 - 🌐 Additional AI providers
 - 🧠 Smarter release intelligence
-- 📣 GitHub release publishing
-------------------------------------------------------------------------
-## 📄 License
-MIT

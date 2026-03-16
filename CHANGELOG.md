@@ -7,6 +7,7 @@
 
 ### Changed
 - wrap main logic in try-except block
+- update CLI workflow for file management
 
 ## [0.3.0] - 2026-03-16
 
