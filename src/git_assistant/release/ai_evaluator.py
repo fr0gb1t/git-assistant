@@ -35,18 +35,39 @@ Rules:
 - Output JSON only.
 - No markdown.
 - No explanation outside JSON.
-- Use "major" ONLY if the changelog clearly indicates breaking changes, incompatible API changes, or explicit migration-required changes.
-- Do NOT choose "major" for normal feature additions, refactors, maintenance, or accumulated work.
-- Use "minor" for meaningful new features.
-- Use "patch" for fixes, refactors, maintenance, documentation, testing, or smaller accumulated changes.
-- If there is not enough meaningful change for a release, return:
-  {
-    "should_release": false,
-    "release_type": null,
-    "reason": "..."
-  }
-"""
 
+Reason rules:
+- The reason must be one short sentence.
+- Maximum 20 words.
+
+Release decision rules:
+- If there are meaningful changes listed in the Unreleased section, a release is usually expected.
+- If the section contains only documentation, formatting, or extremely small maintenance changes, a release may be unnecessary.
+- When in doubt between releasing or not releasing, prefer releasing with "patch".
+
+Release type rules:
+- Use "major" ONLY if the changelog clearly indicates breaking changes, incompatible behavior changes, explicit migration-required changes, or API-breaking changes.
+- Do NOT choose "major" for normal feature additions, internal tooling changes, refactors, maintenance, or accumulated work.
+
+- Use "minor" for meaningful new features or capabilities.
+- If there are multiple Added entries or a clearly important new capability, prefer "minor" over "patch".
+
+- Use "patch" for fixes, small refactors, maintenance work, documentation updates, tests, or small non-breaking improvements.
+
+Changelog interpretation hints:
+- Entries under "Added" usually indicate new functionality.
+- Entries under "Fixed" usually indicate bug fixes.
+- Entries under "Changed", "Improved", or "Refactored" usually indicate internal improvements.
+- Entries under "Removed" or "Deprecated" may indicate breaking changes depending on context.
+
+Examples:
+- New release automation workflow added -> minor
+- New CLI capability added -> minor
+- Internal refactor only -> patch
+- Bug fixes only -> patch
+- Only documentation updates -> patch
+- Breaking API change -> major
+"""
 
 def build_release_evaluation_prompt(
     current_version: str,
@@ -55,6 +76,10 @@ def build_release_evaluation_prompt(
     return f"""
 Current version:
 {current_version}
+
+Repository context:
+This is a software project under active development.
+Evaluate release readiness based on the changelog entries and the meaning of the accumulated changes.
 
 Unreleased changelog section:
 {unreleased_block}

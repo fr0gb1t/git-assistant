@@ -8,6 +8,7 @@
 
 ### Added
 - implement auto-release decision and execution logic
+- add summary for release evaluation results
 
 ### Changed
 - reorganize release module imports and improve auto-release flow

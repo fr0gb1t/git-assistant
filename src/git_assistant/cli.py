@@ -362,6 +362,35 @@ def get_auto_release_decision(
 
     return heuristic, ai, decide_auto_release(heuristic, ai)
 
+def print_release_evaluation_summary(
+    heuristic_suggestion,
+    ai_suggestion,
+    release_decision,
+) -> None:
+    """
+    Print a compact summary of release evaluation results.
+    """
+    heuristic_type = (
+        heuristic_suggestion.release_type
+        if heuristic_suggestion.should_release and heuristic_suggestion.release_type
+        else "none"
+    )
+
+    if ai_suggestion is None:
+        ai_type = "unavailable"
+    else:
+        ai_type = (
+            ai_suggestion.release_type
+            if ai_suggestion.should_release and ai_suggestion.release_type
+            else "none"
+        )
+
+    consensus = "release candidate" if release_decision.should_apply else "no automatic release"
+
+    print("\n📊 Release evaluation summary:")
+    print(f"- heuristic: {heuristic_type}")
+    print(f"- AI: {ai_type}")
+    print(f"- consensus: {consensus}")
 
 def print_heuristic_release_suggestion_from_result(suggestion, debug: bool = False) -> None:
     """
@@ -529,6 +558,12 @@ def main() -> None:
             for file_path in files_to_stage:
                 print(f"  - {file_path}")
 
+        print_release_evaluation_summary(
+            heuristic_suggestion,
+            ai_suggestion,
+            release_decision,
+        )
+
         print_heuristic_release_suggestion_from_result(
             heuristic_suggestion,
             debug=ai_config.debug,
@@ -558,6 +593,12 @@ def main() -> None:
             print(f"🏷 Created tag: {created_tag}")
         except GitError as exc:
             print(f"Warning: release tag could not be created: {exc}", file=sys.stderr)
+
+    print_release_evaluation_summary(
+        heuristic_suggestion,
+        ai_suggestion,
+        release_decision,
+    )
 
     print_heuristic_release_suggestion_from_result(
         heuristic_suggestion,
