@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-16
+
 ### Documentation
 - update README section headers
 - correct indentation in README.md
