@@ -19,11 +19,13 @@ class AIReleaseSuggestion:
 
 
 RELEASE_EVALUATION_SYSTEM_PROMPT = """
-You are a release evaluation assistant.
+You are a semantic versioning release evaluator.
 
-Your task is to analyze the Unreleased changelog section and decide whether a new release should be suggested.
+Your task is to analyze the "Unreleased" section of a changelog that follows the Keep a Changelog format.
 
-You must return ONLY valid JSON with this exact schema:
+You must decide whether a release should be created and what type.
+
+Return ONLY valid JSON:
 
 {
   "should_release": true,
@@ -31,48 +33,89 @@ You must return ONLY valid JSON with this exact schema:
   "reason": "short explanation"
 }
 
-Rules:
-- Output JSON only.
-- No markdown.
-- No explanation outside JSON.
+Guidelines:
 
-Reason rules:
-- The reason must be one short sentence.
-- Maximum 20 words.
+MAJOR
+Use only when:
+- breaking API changes
+- incompatible CLI behavior
+- removed features
+- explicit migration requirements
 
-Release decision rules:
-- If there are meaningful changes listed in the Unreleased section, a release is usually expected.
-- If the section contains only documentation, formatting, or extremely small maintenance changes, a release may be unnecessary.
-- When in doubt between releasing or not releasing, prefer releasing with "patch".
+MINOR
+Use when:
+- new features appear under "Added"
+- new capabilities or workflows were introduced
+- significant internal tooling capability was added
 
-Release type rules:
-- Use "major" ONLY if the changelog clearly indicates breaking changes, incompatible behavior changes, explicit migration-required changes, or API-breaking changes.
-- Do NOT choose "major" for normal feature additions, internal tooling changes, refactors, maintenance, or accumulated work.
+If multiple entries appear under "Added", prefer MINOR.
 
-- Use "minor" for meaningful new features or capabilities.
-- If there are multiple Added entries or a clearly important new capability, prefer "minor" over "patch".
+PATCH
+Use when:
+- bug fixes
+- refactors
+- performance improvements
+- documentation updates
+- tests
 
-- Use "patch" for fixes, small refactors, maintenance work, documentation updates, tests, or small non-breaking improvements.
+If the Unreleased section contains mostly "Changed", "Fixed", "Refactor", or "Docs", prefer PATCH.
 
-Changelog interpretation hints:
-- Entries under "Added" usually indicate new functionality.
-- Entries under "Fixed" usually indicate bug fixes.
-- Entries under "Changed", "Improved", or "Refactored" usually indicate internal improvements.
-- Entries under "Removed" or "Deprecated" may indicate breaking changes depending on context.
+No Release
+If the section contains only trivial maintenance or formatting.
 
-Examples:
-- New release automation workflow added -> minor
-- New CLI capability added -> minor
-- Internal refactor only -> patch
-- Bug fixes only -> patch
-- Only documentation updates -> patch
-- Breaking API change -> major
+Important rules:
+
+- Prefer MINOR when new capabilities are introduced.
+- Documentation alone does not justify MINOR.
+- Multiple Added entries strongly suggest MINOR.
+
+Output JSON only.
 """
+
+def build_unreleased_summary(unreleased_block: str) -> str:
+    """
+    Build a compact summary of the Unreleased changelog section.
+    """
+    section_names = [
+        "Added",
+        "Fixed",
+        "Changed",
+        "Documentation",
+        "Testing",
+        "Maintenance",
+    ]
+
+    counts: dict[str, int] = {name: 0 for name in section_names}
+    current_section: str | None = None
+
+    for raw_line in unreleased_block.splitlines():
+        line = raw_line.strip()
+
+        if not line:
+            continue
+
+        if line.startswith("### "):
+            section_name = line[4:].strip()
+            current_section = section_name if section_name in counts else None
+            continue
+
+        if line.startswith("- ") and current_section is not None:
+            counts[current_section] += 1
+
+    total_entries = sum(counts.values())
+
+    lines = [f"- total entries: {total_entries}"]
+    for section_name in section_names:
+        lines.append(f"- {section_name}: {counts[section_name]}")
+
+    return "\n".join(lines)
 
 def build_release_evaluation_prompt(
     current_version: str,
     unreleased_block: str,
 ) -> str:
+    summary = build_unreleased_summary(unreleased_block)
+
     return f"""
 Current version:
 {current_version}
@@ -80,6 +123,12 @@ Current version:
 Repository context:
 This is a software project under active development.
 Evaluate release readiness based on the changelog entries and the meaning of the accumulated changes.
+
+Important interpretation hint:
+Entries under "Added" usually indicate new functionality and often justify a minor release.
+
+Unreleased summary:
+{summary}
 
 Unreleased changelog section:
 {unreleased_block}

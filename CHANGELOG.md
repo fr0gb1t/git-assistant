@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Changed
+- update AI evaluator guidelines and logic
+
 ## [0.2.0] - 2026-03-16
 
 ### Documentation
