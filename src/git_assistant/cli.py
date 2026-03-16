@@ -26,8 +26,11 @@ from git_assistant.git.ops import (
 )
 from git_assistant.readme.service import (
     ReadmeUpdateError,
+    apply_generated_readme,
     apply_readme_update,
     evaluate_readme_update,
+    generate_initial_readme,
+    preview_generated_readme,
     preview_readme_update,
 )
 from git_assistant.release.ai_evaluator import evaluate_release_with_ai
@@ -308,7 +311,21 @@ def prompt_readme_update_action() -> str:
     print("[3] Skip")
     return input("> ").strip()
 
+
+def prompt_readme_generate_action() -> str:
+    print("\n📘 No README.md found — generate one?")
+    print("[1] Generate and apply")
+    print("[2] Preview first")
+    print("[3] Skip")
+    return input("> ").strip()
+
+
 def maybe_handle_readme_update(cwd: Path, ai_config: AIConfig) -> bool:
+    readme_path = cwd / README_FILE
+
+    if not readme_path.exists():
+        return _handle_readme_generation(cwd, ai_config)
+
     try:
         result = evaluate_readme_update(cwd, ai_config)
     except ReadmeUpdateError as exc:
@@ -346,6 +363,33 @@ def maybe_handle_readme_update(cwd: Path, ai_config: AIConfig) -> bool:
 
         print("Invalid option.")
 
+
+def _handle_readme_generation(cwd: Path, ai_config: AIConfig) -> bool:
+    while True:
+        action = prompt_readme_generate_action()
+
+        if action == "3":
+            return False
+
+        if action in ("1", "2"):
+            print("\n✨ Generating README.md...")
+            try:
+                result = generate_initial_readme(cwd, ai_config)
+            except ReadmeUpdateError as exc:
+                print(f"Warning: README generation failed: {exc}", file=sys.stderr)
+                return False
+
+            if action == "2":
+                preview_path, diff_path = preview_generated_readme(cwd, result)
+                print(f"🔎 Preview opened: {preview_path}")
+                print(f"🧾 Diff saved at: {diff_path}")
+                continue
+
+            apply_generated_readme(cwd, result)
+            print("📝 README.md generated.")
+            return True
+
+        print("Invalid option.")
 def prompt_release_choice(
     heuristic,
     ai,

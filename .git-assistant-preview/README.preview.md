@@ -9,45 +9,23 @@
 `git-assistant` analyzes your Git changes, generates high‑quality commit messages using AI, updates your `CHANGELOG.md` automatically, suggests when a new release may be appropriate, and pushes releases to remote repositories.
 
 It is designed to streamline the **entire commit → changelog → release workflow** while staying fast, safe, and developer-friendly.
-
 ------------------------------------------------------------------------
 ## ✨ Features
 - 🤖 **AI commit message generation**
-- 🗂 **Interactive file selection**
 - 🔢 Range selection support (`1-4,7,9`)
 - ⚡ Fast workflow with `--all-files`
 - 🧪 Safe testing with `--dry-run`
-- 🐞 Detailed diagnostics with `--debug`
-- 🧠 Intelligent diff analysis with truncation protection
-- 📄 Support for **untracked files**
-- 🖼 Binary files included in commits without polluting prompts
-- 🧱 Repository structure context improves commit scopes
 - 📝 **Automatic `CHANGELOG.md` updates**
-  - Automatically stages the updated changelog
-- 🚀 **Release suggestions and execution**
-  - Rule-based evaluation for release decisions
-  - AI-based evaluation for release suggestions
-  - Pushes releases to remote repositories automatically
+  - The entry is derived from the generated commit message.
+  - `CHANGELOG.md` is **automatically staged**.
+  - When using `--dry-run`, the changelog is restored afterward.
+- 💥 **AI-driven README updates in CLI workflow**
 - 🏷 Version detection via:
   - Latest Git tag
   - Changelog fallback
-- ⚙ Configurable through `.git-assistant.toml`
 - 🔌 Extensible AI provider architecture
-
-------------------------------------------------------------------------
-## 📦 Installation
-Clone the repository and install in editable mode:
-
-``` bash
-pip install -e .
-```
-
-Run the tool:
-
-``` bash
-git-assistant
-```
-
+- 📦 Release workflow execution
+- 🚀 Automatic release creation and pushing to remote repositories
 ------------------------------------------------------------------------
 ## ⚡ Quick Usage
 ### Interactive commit workflow
@@ -65,6 +43,18 @@ git-assistant --dry-run
 ### Enable debug diagnostics
 ``` bash
 git-assistant --debug
+```
+------------------------------------------------------------------------
+## 📦 Installation
+Clone the repository and install in editable mode:
+
+``` bash
+pip install -e .
+```
+Run the tool:
+
+``` bash
+git-assistant
 ```
 ------------------------------------------------------------------------
 ## 📂 File Selection
@@ -87,11 +77,11 @@ Special option:
 Includes **all selectable files**.
 ------------------------------------------------------------------------
 ## 📝 CHANGELOG Behavior
-`git-assistant` automatically updates `CHANGELOG.md` before creating a commit.
-Key rules:
+`git-assistant` automatically updates `CHANGELOG.md` before creating a commit. Key rules:
 - The entry is derived from the generated commit message.
 - `CHANGELOG.md` is **automatically staged**.
 - When using `--dry-run`, the changelog is restored afterward.
+- Pushes releases to remote repositories automatically after successful commits.
 ------------------------------------------------------------------------
 ## 🚀 Release Suggestions
 After each successful commit, the tool analyzes `CHANGELOG.md` and suggests whether a release should occur. The tool also supports pushing releases to remote repositories automatically.
@@ -105,52 +95,13 @@ Version detection priority:
 2️⃣ Latest version in `CHANGELOG.md`
 3️⃣ Fallback version
 ------------------------------------------------------------------------
-## ⚙ Configuration
-Create a `.git-assistant.toml` file:
-``` toml
-[ai]
-provider = "ollama"
-model = "qwen2.5:14b"
-host = "http://127.0.0.1:11434"
-timeout = 120
-```
-------------------------------------------------------------------------
-## 🧠 AI Providers
-Currently supported:
-- **Ollama** (local LLMs)
-Example model:
-qwen2.5:14b
-The architecture is designed to support additional providers in the future.
-------------------------------------------------------------------------
-## 🧪 Example Output
-``` text
-📦 Repository: /home/user/project
-
-📂 Changed files:
-  [0] all
-  [1] src/cli.py
-  [2] src/release/evaluator.py
-
-🗂 Files selected for analysis:
-- src/cli.py
-- src/release/evaluator.py
-
-✨ Generating commit message...
-
-💬 Suggested commit:
-feat(release): add changelog-based release suggestion functionality
-
-⚙ What do you want to do?
-[1] Commit with this message
-[2] Edit message
-[3] Regenerate message
-[4] Cancel
-```
-------------------------------------------------------------------------
 ## 🛣 Roadmap
 Planned features:
+- 📦 Release workflow execution
+- 🔄 Version bump automation
 - 🌐 Additional AI providers
 - 🧠 Smarter release intelligence
+- 📣 GitHub release publishing
 ------------------------------------------------------------------------
 ## 📄 License
 MIT
