@@ -9,6 +9,9 @@
 ### Added
 - implement auto-release decision and execution logic
 
+### Changed
+- reorganize release module imports and improve auto-release flow
+
 ## [0.1.0] - 2026-03-15
 
 ### Added
