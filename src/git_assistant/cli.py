@@ -24,6 +24,12 @@ from git_assistant.git.ops import (
     git_push,
     git_push_tag,
 )
+from git_assistant.readme.service import (
+    ReadmeUpdateError,
+    apply_readme_update,
+    evaluate_readme_update,
+    preview_readme_update,
+)
 from git_assistant.release.ai_evaluator import evaluate_release_with_ai
 from git_assistant.release.decision import decide_auto_release
 from git_assistant.release.evaluator import evaluate_release
@@ -31,7 +37,9 @@ from git_assistant.release.executor import create_release_tag, prepare_release_c
 
 
 CHANGELOG_FILE = "CHANGELOG.md"
+README_FILE = "README.md"
 AUTO_INCLUDED_FILES = [CHANGELOG_FILE]
+SNAPSHOT_MANAGED_FILES = [CHANGELOG_FILE, README_FILE]
 
 
 def parse_args() -> argparse.Namespace:
@@ -86,9 +94,10 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def snapshot_auto_included_files(cwd: Path) -> dict[str, str | None]:
+def snapshot_managed_files(cwd: Path) -> dict[str, str | None]:
     """
-    Snapshot the current state of auto-included files.
+    Snapshot the current state of managed files that may be modified
+    during the workflow (e.g. CHANGELOG.md, README.md).
 
     Returns:
         dict[path, content_or_none]
@@ -96,7 +105,7 @@ def snapshot_auto_included_files(cwd: Path) -> dict[str, str | None]:
     """
     snapshot: dict[str, str | None] = {}
 
-    for file_path in AUTO_INCLUDED_FILES:
+    for file_path in SNAPSHOT_MANAGED_FILES:
         abs_path = cwd / file_path
         if abs_path.exists():
             snapshot[file_path] = abs_path.read_text(encoding="utf-8")
@@ -106,9 +115,9 @@ def snapshot_auto_included_files(cwd: Path) -> dict[str, str | None]:
     return snapshot
 
 
-def restore_auto_included_files(cwd: Path, snapshot: dict[str, str | None]) -> None:
+def restore_managed_files(cwd: Path, snapshot: dict[str, str | None]) -> None:
     """
-    Restore auto-included files to their original state.
+    Restore managed files to their original state from a snapshot.
     """
     for file_path, original_content in snapshot.items():
         abs_path = cwd / file_path
@@ -292,6 +301,50 @@ def prompt_user_action() -> str:
     print("[4] Cancel")
     return input("> ").strip()
 
+def prompt_readme_update_action() -> str:
+    print("\n📘 README update available:")
+    print("[1] Apply update")
+    print("[2] Preview update")
+    print("[3] Skip")
+    return input("> ").strip()
+
+def maybe_handle_readme_update(cwd: Path, ai_config: AIConfig) -> bool:
+    try:
+        result = evaluate_readme_update(cwd, ai_config)
+    except ReadmeUpdateError as exc:
+        if ai_config.debug:
+            print(f"\n[DEBUG] README evaluation failed: {exc}")
+        return False
+
+    if not result.should_update:
+        if ai_config.debug:
+            print(f"\n[DEBUG] README update not needed: {result.reason}")
+        return False
+
+    print("\n📘 README evaluation:")
+    print(f"- update needed: yes")
+    print(f"- reason: {result.reason}")
+    if result.updated_sections:
+        print(f"- sections: {', '.join(result.updated_sections)}")
+
+    while True:
+        action = prompt_readme_update_action()
+
+        if action == "1":
+            apply_readme_update(cwd, result)
+            print("📝 README.md updated.")
+            return True
+
+        if action == "2":
+            preview_path, diff_path = preview_readme_update(cwd, result)
+            print(f"🔎 Preview opened: {preview_path}")
+            print(f"🧾 Diff saved at: {diff_path}")
+            continue
+
+        if action == "3":
+            return False
+
+        print("Invalid option.")
 
 def prompt_release_choice(
     heuristic,
@@ -570,9 +623,11 @@ def main() -> None:
             print("Cancelled.")
             sys.exit(0)
 
-    auto_files_snapshot = snapshot_auto_included_files(cwd)
+    managed_files_snapshot = snapshot_managed_files(cwd)
 
     update_changelog(cwd, final_message)
+
+    readme_applied = maybe_handle_readme_update(cwd, ai_config)
 
     heuristic_suggestion, ai_suggestion, release_decision = evaluate_release_suggestions(
         cwd,
@@ -581,9 +636,11 @@ def main() -> None:
 
     files_to_stage = list(selected_files)
 
-    for auto_file in AUTO_INCLUDED_FILES:
-        if auto_file not in files_to_stage and (cwd / auto_file).exists():
-            files_to_stage.append(auto_file)
+    if CHANGELOG_FILE not in files_to_stage and (cwd / CHANGELOG_FILE).exists():
+        files_to_stage.append(CHANGELOG_FILE)
+
+    if readme_applied and "README.md" not in files_to_stage and (cwd / "README.md").exists():
+        files_to_stage.append("README.md")
 
     if args.dry_run:
         print("\n🧪 Dry run enabled: no commit was created.")
@@ -609,14 +666,14 @@ def main() -> None:
             debug=ai_config.debug,
         )
 
-        restore_auto_included_files(cwd, auto_files_snapshot)
+        restore_managed_files(cwd, managed_files_snapshot)
         sys.exit(0)
 
     try:
         git_add_files(files_to_stage, cwd)
         commit_output = git_commit(final_message, cwd)
     except GitError as exc:
-        restore_auto_included_files(cwd, auto_files_snapshot)
+        restore_managed_files(cwd, managed_files_snapshot)
         print(f"Git error while creating commit: {exc}", file=sys.stderr)
         sys.exit(1)
 

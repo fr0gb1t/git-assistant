@@ -7,6 +7,7 @@
 
 ### Added
 - add push functionality for releases
+- integrate AI-driven README updates in CLI workflow
 
 ## [0.2.0] - 2026-03-16
 
