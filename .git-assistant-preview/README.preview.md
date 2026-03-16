@@ -28,7 +28,6 @@ It is designed to streamline the **entire commit → changelog → release workf
   - Rule-based evaluation for release decisions
   - AI-based evaluation for release suggestions
   - Pushes releases to remote repositories automatically
-- 💥 **AI-driven README updates in CLI workflow**
 - 🏷 Version detection via:
   - Latest Git tag
   - Changelog fallback
@@ -88,11 +87,11 @@ Special option:
 Includes **all selectable files**.
 ------------------------------------------------------------------------
 ## 📝 CHANGELOG Behavior
-`git-assistant` automatically updates `CHANGELOG.md` before creating a commit. Key rules:
+`git-assistant` automatically updates `CHANGELOG.md` before creating a commit.
+Key rules:
 - The entry is derived from the generated commit message.
 - `CHANGELOG.md` is **automatically staged**.
 - When using `--dry-run`, the changelog is restored afterward.
-- Pushes releases to remote repositories automatically after successful commits.
 ------------------------------------------------------------------------
 ## 🚀 Release Suggestions
 After each successful commit, the tool analyzes `CHANGELOG.md` and suggests whether a release should occur. The tool also supports pushing releases to remote repositories automatically.
@@ -150,12 +149,8 @@ feat(release): add changelog-based release suggestion functionality
 ------------------------------------------------------------------------
 ## 🛣 Roadmap
 Planned features:
-- 🏷 Automatic Git tag creation
-- 📦 Release workflow execution
-- 🔄 Version bump automation
 - 🌐 Additional AI providers
 - 🧠 Smarter release intelligence
-- 📣 GitHub release publishing
 ------------------------------------------------------------------------
 ## 📄 License
 MIT

@@ -9,6 +9,9 @@
 - add push functionality for releases
 - integrate AI-driven README updates in CLI workflow
 
+### Documentation
+- update README with enhanced feature descriptions and workflow details
+
 ## [0.2.0] - 2026-03-16
 
 ### Documentation

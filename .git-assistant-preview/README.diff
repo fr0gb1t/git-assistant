@@ -1,0 +1,224 @@
+--- README.md
++++ README.preview.md
+@@ -2,22 +2,16 @@
+ 
+ ![Python](https://img.shields.io/badge/python-3.10+-blue)
+ ![License](https://img.shields.io/badge/license-MIT-green)
+-![Status](https://img.shields.io/badge/status-active-success) ![AI
+-Powered](https://img.shields.io/badge/AI-powered-purple)
++![Status](https://img.shields.io/badge/status-active-success) ![AI Powered](https://img.shields.io/badge/AI-powered-purple)
+ 
+ **AI‑powered Git commit and release workflow assistant.**
+ 
+-`git-assistant` analyzes your Git changes, generates high‑quality commit
+-messages using AI, updates your `CHANGELOG.md` automatically, and
+-suggests when a new release may be appropriate.
++`git-assistant` analyzes your Git changes, generates high‑quality commit messages using AI, updates your `CHANGELOG.md` automatically, suggests when a new release may be appropriate, and pushes releases to remote repositories.
+ 
+-It is designed to streamline the **entire commit → changelog → release
+-suggestion workflow** while staying fast, safe, and developer‑friendly.
++It is designed to streamline the **entire commit → changelog → release workflow** while staying fast, safe, and developer-friendly.
+ 
+ ------------------------------------------------------------------------
+-
+ ## ✨ Features
+-
+ - 🤖 **AI commit message generation**
+ - 🗂 **Interactive file selection**
+ - 🔢 Range selection support (`1-4,7,9`)
+@@ -29,19 +23,19 @@
+ - 🖼 Binary files included in commits without polluting prompts
+ - 🧱 Repository structure context improves commit scopes
+ - 📝 **Automatic `CHANGELOG.md` updates**
+-- 🚀 **Release suggestions**
+-  - rule‑based evaluation
+-  - AI‑based evaluation
++  - Automatically stages the updated changelog
++- 🚀 **Release suggestions and execution**
++  - Rule-based evaluation for release decisions
++  - AI-based evaluation for release suggestions
++  - Pushes releases to remote repositories automatically
+ - 🏷 Version detection via:
+-  - latest Git tag
+-  - changelog fallback
++  - Latest Git tag
++  - Changelog fallback
+ - ⚙ Configurable through `.git-assistant.toml`
+ - 🔌 Extensible AI provider architecture
+ 
+ ------------------------------------------------------------------------
+-
+ ## 📦 Installation
+-
+ Clone the repository and install in editable mode:
+ 
+ ``` bash
+@@ -55,106 +49,64 @@
+ ```
+ 
+ ------------------------------------------------------------------------
+-
+ ## ⚡ Quick Usage
+-
+ ### Interactive commit workflow
+-
+ ``` bash
+ git-assistant
+ ```
+-
+ ### Include all files automatically
+-
+ ``` bash
+ git-assistant --all-files
+ ```
+-
+ ### Test workflow without committing
+-
+ ``` bash
+ git-assistant --dry-run
+ ```
+-
+ ### Enable debug diagnostics
+-
+ ``` bash
+ git-assistant --debug
+ ```
+-
+ ------------------------------------------------------------------------
+-
+ ## 📂 File Selection
+-
+ You can select files using:
+-
+ ```text
+     1,2,4
+ ```
+-
+ Ranges:
+-
+ ```text
+     1-4
+ ```
+-
+ Or combinations:
+-
+ ```text
+     1-4,7,9
+ ```
+-
+ Special option:
+-
+ ```text
+     0
+ ```
+-
+ Includes **all selectable files**.
+-
+ ------------------------------------------------------------------------
+-
+ ## 📝 CHANGELOG Behavior
+-
+-`git-assistant` automatically updates `CHANGELOG.md` before creating a
+-commit.
+-
++`git-assistant` automatically updates `CHANGELOG.md` before creating a commit.
+ Key rules:
+-
+-- the entry is derived from the generated commit message
+-- `CHANGELOG.md` is **automatically staged**
+-- the file is **excluded from AI analysis**
+-- when using `--dry-run`, the changelog is restored afterward
+-
++- The entry is derived from the generated commit message.
++- `CHANGELOG.md` is **automatically staged**.
++- When using `--dry-run`, the changelog is restored afterward.
+ ------------------------------------------------------------------------
+-
+ ## 🚀 Release Suggestions
+-
+-After each successful commit the tool analyzes `CHANGELOG.md` and
+-suggests whether a release should occur.
+-
++After each successful commit, the tool analyzes `CHANGELOG.md` and suggests whether a release should occur. The tool also supports pushing releases to remote repositories automatically.
+ Two mechanisms are used:
+-
+ ### Heuristic evaluation
+-
+ Rules based on changelog structure.
+-
+ ### AI evaluation
+-
+-An optional AI analysis of the `Unreleased` section.
+-
++An optional AI analysis of the `Unreleased` section in `CHANGELOG.md`.
+ Version detection priority:
+-
+-1️⃣ latest Git tag\
+-2️⃣ latest version in `CHANGELOG.md`\
+-3️⃣ fallback version
+-
++1️⃣ Latest Git tag
++2️⃣ Latest version in `CHANGELOG.md`
++3️⃣ Fallback version
+ ------------------------------------------------------------------------
+-
+ ## ⚙ Configuration
+-
+ Create a `.git-assistant.toml` file:
+-
+ ``` toml
+ [ai]
+ provider = "ollama"
+@@ -162,26 +114,15 @@
+ host = "http://127.0.0.1:11434"
+ timeout = 120
+ ```
+-
+ ------------------------------------------------------------------------
+-
+ ## 🧠 AI Providers
+-
+ Currently supported:
+-
+ - **Ollama** (local LLMs)
+-
+ Example model:
+-
+-  qwen2.5:14b
+-
+-The architecture is designed to support additional providers in the
+-future.
+-
++qwen2.5:14b
++The architecture is designed to support additional providers in the future.
+ ------------------------------------------------------------------------
+-
+ ## 🧪 Example Output
+-
+ ``` text
+ 📦 Repository: /home/user/project
+ 
+@@ -205,22 +146,15 @@
+ [3] Regenerate message
+ [4] Cancel
+ ```
+-
+ ------------------------------------------------------------------------
+-
+ ## 🛣 Roadmap
+-
+ Planned features:
+-
+ - 🏷 Automatic Git tag creation
+ - 📦 Release workflow execution
+ - 🔄 Version bump automation
+ - 🌐 Additional AI providers
+ - 🧠 Smarter release intelligence
+ - 📣 GitHub release publishing
+-
+ ------------------------------------------------------------------------
+-
+ ## 📄 License
+-
+-MIT
++MIT
