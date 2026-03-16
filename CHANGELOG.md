@@ -12,6 +12,7 @@
 
 ### Changed
 - reorganize release module imports and improve auto-release flow
+- restructure release prompt and apply logic
 
 ## [0.1.0] - 2026-03-15
 

@@ -291,16 +291,55 @@ def prompt_user_action() -> str:
     return input("> ").strip()
 
 
-def prompt_auto_release(version: str, reason: str) -> bool:
-    print(f"\n🏷 Release candidate detected: v{version}")
-    print(reason)
-    print("Apply release now?")
-    print("[1] Yes")
-    print("[2] No")
+def prompt_release_choice(
+    heuristic,
+    ai,
+) -> str | None:
+
+    options = {}
+
+    print("\n⚙ Apply a release?")
+    
+    if heuristic.should_release and heuristic.next_version:
+        print(f"[1] Release {heuristic.next_version} (heuristic)")
+        options["1"] = heuristic.next_version
+
+    if ai and ai.should_release and ai.next_version:
+        print(f"[2] Release {ai.next_version} (AI)")
+        options["2"] = ai.next_version
+
+    print("[0] Skip")
 
     choice = input("> ").strip()
-    return choice == "1"
 
+    return options.get(choice)
+
+def apply_release(
+    cwd: Path,
+    version: str,
+) -> None:
+    """
+    Apply a release by closing the Unreleased section,
+    committing the changelog, and creating a tag.
+    """
+    try:
+        prepare_release_changelog(cwd, version=version)
+    except OSError as exc:
+        print(f"Warning: failed to prepare release changelog: {exc}", file=sys.stderr)
+        return
+
+    try:
+        git_add_files([CHANGELOG_FILE], cwd)
+        git_commit(f"chore(release): publish v{version}", cwd)
+    except GitError as exc:
+        print(f"Git error while creating release commit: {exc}", file=sys.stderr)
+        return
+
+    try:
+        created_tag = create_release_tag(cwd, version)
+        print(f"🏷 Created tag: {created_tag}")
+    except GitError as exc:
+        print(f"Warning: release tag could not be created: {exc}", file=sys.stderr)
 
 def generate_and_display_commit_message(
     cwd: Path,
@@ -346,7 +385,7 @@ def update_changelog(cwd: Path, commit_message: str) -> None:
     print(f"📝 CHANGELOG updated: {changelog_path.name}")
 
 
-def get_auto_release_decision(
+def evaluate_release_suggestions(
     cwd: Path,
     ai_config: AIConfig,
 ):
@@ -519,29 +558,10 @@ def main() -> None:
 
     update_changelog(cwd, final_message)
 
-    heuristic_suggestion, ai_suggestion, release_decision = get_auto_release_decision(
+    heuristic_suggestion, ai_suggestion, release_decision = evaluate_release_suggestions(
         cwd,
         ai_config,
     )
-
-    auto_release_version = None
-
-    if (
-        not args.dry_run
-        and release_decision.should_apply
-        and release_decision.next_version is not None
-    ):
-        if prompt_auto_release(
-            version=release_decision.next_version,
-            reason=release_decision.reason,
-        ):
-            try:
-                prepare_release_changelog(cwd, version=release_decision.next_version)
-            except OSError as exc:
-                print(f"Warning: failed to prepare release changelog: {exc}", file=sys.stderr)
-            else:
-                print(f"🏷 Auto-release prepared: v{release_decision.next_version}")
-                auto_release_version = release_decision.next_version
 
     files_to_stage = list(selected_files)
 
@@ -587,13 +607,6 @@ def main() -> None:
     print("\n✅ Commit created successfully.\n")
     print(commit_output)
 
-    if auto_release_version is not None:
-        try:
-            created_tag = create_release_tag(cwd, auto_release_version)
-            print(f"🏷 Created tag: {created_tag}")
-        except GitError as exc:
-            print(f"Warning: release tag could not be created: {exc}", file=sys.stderr)
-
     print_release_evaluation_summary(
         heuristic_suggestion,
         ai_suggestion,
@@ -604,11 +617,24 @@ def main() -> None:
         heuristic_suggestion,
         debug=ai_config.debug,
     )
+
     print_ai_release_suggestion_from_result(
         ai_suggestion,
         debug=ai_config.debug,
     )
 
+    release_version = prompt_release_choice(
+        heuristic_suggestion,
+        ai_suggestion,
+    )
 
+    if release_version is not None:
+        try:
+            apply_release(cwd, release_version)
+        except GitError as exc:
+            print(
+                f"Warning: release could not be created: {exc}",
+                file=sys.stderr,
+            )
 if __name__ == "__main__":
     main()
