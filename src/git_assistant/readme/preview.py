@@ -5,6 +5,7 @@ import os
 import platform
 import shutil
 import subprocess
+import webbrowser
 from os import environ
 from pathlib import Path
 
@@ -55,6 +56,15 @@ def cleanup_preview_files(cwd: Path) -> None:
 
 
 def open_preview_file(path: Path) -> None:
+    webbrowser.open(path.resolve().as_uri())
+
+
+def open_preview_pair(preview_path: Path, diff_path: Path) -> None:
+    open_preview_file(preview_path)
+    open_diff_file(diff_path)
+
+
+def open_diff_file(path: Path) -> None:
     command = _resolve_opener_command(path)
     if command is None:
         return
@@ -66,19 +76,6 @@ def open_preview_file(path: Path) -> None:
             stderr=devnull,
             start_new_session=True,
         )
-
-
-def open_preview_pair(preview_path: Path, diff_path: Path) -> None:
-    open_preview_file(preview_path)
-    open_diff_file(diff_path)
-
-
-def open_diff_file(path: Path) -> None:
-    editor = _resolve_editor()
-    if editor is None:
-        return
-
-    subprocess.Popen([editor, str(path)], start_new_session=True)
 
 
 def open_preview_in_editor(path: Path) -> None:

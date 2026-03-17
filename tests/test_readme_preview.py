@@ -82,15 +82,16 @@ class ReadmePreviewTests(unittest.TestCase):
                 updated_readme="# New\n",
             )
 
-            with patch("git_assistant.readme.preview.subprocess.Popen") as mock_popen:
-                with patch(
-                    "git_assistant.readme.preview._resolve_opener_command",
-                    return_value=["xdg-open", str(preview_path)],
-                ):
-                    with patch("git_assistant.readme.preview._resolve_editor", return_value="nano"):
+            with patch("git_assistant.readme.preview.webbrowser.open") as mock_open:
+                with patch("git_assistant.readme.preview.subprocess.Popen") as mock_popen:
+                    with patch(
+                        "git_assistant.readme.preview._resolve_opener_command",
+                        return_value=["xdg-open", str(diff_path)],
+                    ):
                         open_preview_pair(preview_path, diff_path)
 
-            self.assertEqual(mock_popen.call_count, 2)
+            mock_open.assert_called_once()
+            mock_popen.assert_called_once()
 
     def test_open_preview_pair_skips_diff_autolaunch_without_editor(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -101,15 +102,13 @@ class ReadmePreviewTests(unittest.TestCase):
                 updated_readme="# New\n",
             )
 
-            with patch("git_assistant.readme.preview.subprocess.Popen") as mock_popen:
-                with patch(
-                    "git_assistant.readme.preview._resolve_opener_command",
-                    return_value=["xdg-open", str(preview_path)],
-                ):
-                    with patch("git_assistant.readme.preview._resolve_editor", return_value=None):
+            with patch("git_assistant.readme.preview.webbrowser.open") as mock_open:
+                with patch("git_assistant.readme.preview.subprocess.Popen") as mock_popen:
+                    with patch("git_assistant.readme.preview._resolve_opener_command", return_value=None):
                         open_preview_pair(preview_path, diff_path)
 
-            mock_popen.assert_called_once()
+            mock_open.assert_called_once()
+            mock_popen.assert_not_called()
 
 
 if __name__ == "__main__":
