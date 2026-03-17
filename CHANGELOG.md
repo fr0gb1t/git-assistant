@@ -8,6 +8,7 @@
 - add first stable release option in prompt_release_choice
 - add upstream sync and push prompts
 - update project description to reflect broader functionality
+- add non-interactive mode option in CLI commands
 
 ## [0.7.3] - 2026-03-17
 

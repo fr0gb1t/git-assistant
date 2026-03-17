@@ -5,7 +5,7 @@ import unittest
 from contextlib import redirect_stdout
 from unittest.mock import patch
 
-from git_assistant.cli import prompt_release_choice
+from git_assistant.cli import choose_release_version, prompt_release_choice
 from git_assistant.release.ai_evaluator import AIReleaseSuggestion
 from git_assistant.release.evaluator import ReleaseSuggestion, StableReleaseHint
 
@@ -71,6 +71,37 @@ class ReleasePromptTests(unittest.TestCase):
 
         self.assertEqual(selected, "1.0.0")
         self.assertEqual(output.count("Release 1.0.0"), 1)
+
+    def test_choose_release_version_non_interactive_ignores_first_stable_hint(self) -> None:
+        heuristic = ReleaseSuggestion(
+            should_release=True,
+            release_type="minor",
+            next_version="0.8.0",
+            reason="user-facing feature",
+        )
+        ai = AIReleaseSuggestion(
+            should_release=True,
+            release_type="minor",
+            next_version="0.8.0",
+            reason="user-facing feature",
+        )
+        hint = StableReleaseHint(
+            should_suggest=True,
+            version="1.0.0",
+            reason="stable project",
+            current_version="0.7.9",
+            released_versions=5,
+            released_entries=20,
+        )
+
+        selected = choose_release_version(
+            heuristic,
+            ai,
+            hint,
+            non_interactive=True,
+        )
+
+        self.assertEqual(selected, "0.8.0")
 
 
 if __name__ == "__main__":

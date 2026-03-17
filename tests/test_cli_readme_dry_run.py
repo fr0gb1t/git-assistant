@@ -35,6 +35,25 @@ class ReadmeDryRunTests(unittest.TestCase):
             self.assertTrue(applied)
             self.assertEqual(readme_path.read_text(encoding="utf-8"), "# Original\n")
 
+    def test_maybe_handle_readme_update_non_interactive_applies_without_prompt(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cwd = Path(tmp_dir)
+            readme_path = cwd / "README.md"
+            readme_path.write_text("# Original\n", encoding="utf-8")
+
+            result = ReadmeUpdateResult(
+                should_update=True,
+                reason="Recent user-facing changes",
+                updated_sections=["Features"],
+                updated_readme="# Updated\n",
+            )
+
+            with patch("git_assistant.cli.evaluate_readme_update", return_value=result):
+                applied = maybe_handle_readme_update(cwd, AIConfig(), non_interactive=True)
+
+            self.assertTrue(applied)
+            self.assertEqual(readme_path.read_text(encoding="utf-8"), "# Updated\n")
+
     def test_main_dry_run_restores_state_before_exit(self) -> None:
         args = Namespace(
             provider=None,

@@ -120,6 +120,14 @@ def parse_args() -> argparse.Namespace:
         help="Apply a release directly using a version like 0.7.2 or v0.7.2",
     )
 
+    parser.add_argument(
+        "--non-interactive",
+        "--yes",
+        dest="non_interactive",
+        action="store_true",
+        help="Run non-interactively using automatic default decisions where possible (--yes is kept as a compatibility alias)",
+    )
+
     return parser.parse_args()
 
 
@@ -382,7 +390,7 @@ def prompt_edit_commit_message(suggested_message: str) -> str:
         readline.set_pre_input_hook(None)
 
 
-def maybe_handle_upstream_sync(cwd: Path, *, clean_worktree: bool) -> None:
+def maybe_handle_upstream_sync(cwd: Path, *, clean_worktree: bool, non_interactive: bool = False) -> None:
     try:
         upstream = get_upstream_status(cwd)
     except GitError as exc:
@@ -398,6 +406,19 @@ def maybe_handle_upstream_sync(cwd: Path, *, clean_worktree: bool) -> None:
         print(f"- ahead: {upstream.ahead}")
     if upstream.upstream_ref:
         print(f"- upstream: {upstream.upstream_ref}")
+
+    if non_interactive:
+        if clean_worktree:
+            try:
+                git_pull_ff_only(cwd)
+            except GitError as exc:
+                print(f"Git error while pulling latest changes: {exc}", file=sys.stderr)
+                sys.exit(1)
+            print("⬇ Repository updated with remote changes.")
+            return
+
+        print("⚠ Continuing without pull because local changes are present.")
+        return
 
     while True:
         action = prompt_sync_action(clean_worktree)
@@ -441,12 +462,23 @@ def prompt_readme_generate_action() -> str:
     return input("> ").strip()
 
 
-def maybe_handle_readme_update(cwd: Path, ai_config: AIConfig, *, dry_run: bool = False) -> bool:
+def maybe_handle_readme_update(
+    cwd: Path,
+    ai_config: AIConfig,
+    *,
+    dry_run: bool = False,
+    non_interactive: bool = False,
+) -> bool:
     clear_readme_preview(cwd)
     readme_path = cwd / README_FILE
 
     if not readme_path.exists():
-        return _handle_readme_generation(cwd, ai_config, dry_run=dry_run)
+        return _handle_readme_generation(
+            cwd,
+            ai_config,
+            dry_run=dry_run,
+            non_interactive=non_interactive,
+        )
 
     try:
         result = evaluate_readme_update(cwd, ai_config)
@@ -465,6 +497,16 @@ def maybe_handle_readme_update(cwd: Path, ai_config: AIConfig, *, dry_run: bool 
     print(f"- reason: {result.reason}")
     if result.updated_sections:
         print(f"- sections: {', '.join(result.updated_sections)}")
+
+    if non_interactive:
+        if dry_run:
+            clear_readme_preview(cwd)
+            print("🧪 README.md update would be applied automatically (dry run).")
+            return True
+        apply_readme_update(cwd, result)
+        clear_readme_preview(cwd)
+        print("📝 README.md updated automatically.")
+        return True
 
     while True:
         action = prompt_readme_update_action()
@@ -508,8 +550,32 @@ def maybe_handle_readme_update(cwd: Path, ai_config: AIConfig, *, dry_run: bool 
         print("Invalid option.")
 
 
-def _handle_readme_generation(cwd: Path, ai_config: AIConfig, *, dry_run: bool = False) -> bool:
+def _handle_readme_generation(
+    cwd: Path,
+    ai_config: AIConfig,
+    *,
+    dry_run: bool = False,
+    non_interactive: bool = False,
+) -> bool:
     clear_readme_preview(cwd)
+    if non_interactive:
+        print("\n✨ Generating README.md...")
+        try:
+            result = generate_initial_readme(cwd, ai_config)
+        except ReadmeUpdateError as exc:
+            print(f"Warning: README generation failed: {exc}", file=sys.stderr)
+            return False
+
+        if dry_run:
+            clear_readme_preview(cwd)
+            print("🧪 README.md would be generated automatically (dry run).")
+            return True
+
+        apply_generated_readme(cwd, result)
+        clear_readme_preview(cwd)
+        print("📝 README.md generated automatically.")
+        return True
+
     while True:
         action = prompt_readme_generate_action()
 
@@ -822,9 +888,204 @@ def enrich_first_stable_hint_reason(hint, ai_config: AIConfig):
     return hint
 
 
+def select_files_for_analysis(
+    args: argparse.Namespace,
+    selectable_files: list[str],
+) -> list[str]:
+    if args.all_files or getattr(args, "non_interactive", getattr(args, "yes", False)):
+        print_changed_files(selectable_files)
+        return list(selectable_files)
+
+    print_numbered_files(selectable_files)
+    prompted_selection = prompt_file_selection(selectable_files)
+    selected_files = list(selectable_files) if prompted_selection is None else prompted_selection
+    print()
+    print_selected_files(selected_files)
+    return selected_files
+
+
+def resolve_commit_message(
+    cwd: Path,
+    ai_config: AIConfig,
+    selected_files: list[str] | None,
+    *,
+    non_interactive: bool = False,
+) -> str:
+    while True:
+        result = generate_and_display_commit_message(
+            cwd=cwd,
+            ai_config=ai_config,
+            selected_files=selected_files,
+        )
+
+        if non_interactive:
+            return result.message
+
+        action = prompt_user_action()
+
+        if action == "1":
+            return result.message
+        if action == "2":
+            edited_message = prompt_edit_commit_message(result.message)
+            if not edited_message:
+                print("Empty commit message. Cancelled.")
+                sys.exit(1)
+            return edited_message
+        if action == "3":
+            print("\n🔁 Regenerating commit message...")
+            continue
+
+        print("Cancelled.")
+        sys.exit(0)
+
+
+def print_dry_run_summary(
+    final_message: str,
+    files_to_stage: list[str],
+    heuristic_suggestion,
+    ai_suggestion,
+    release_decision,
+    first_stable_hint,
+    *,
+    debug: bool = False,
+) -> None:
+    print("\n🧪 Dry run enabled: no commit was created.")
+    print(f"💬 Suggested final commit message: {final_message}")
+
+    if files_to_stage:
+        print("\nFiles to include:")
+        for file_path in files_to_stage:
+            print(f"  - {file_path}")
+
+    print_release_evaluation_summary(
+        heuristic_suggestion,
+        ai_suggestion,
+        release_decision,
+    )
+    print_heuristic_release_suggestion_from_result(
+        heuristic_suggestion,
+        debug=debug,
+    )
+    print_ai_release_suggestion_from_result(
+        ai_suggestion,
+        debug=debug,
+    )
+    print_first_stable_release_hint(first_stable_hint)
+
+
+def choose_release_version(
+    heuristic_suggestion,
+    ai_suggestion,
+    first_stable_hint,
+    *,
+    non_interactive: bool = False,
+) -> str | None:
+    if non_interactive:
+        heuristic_version = (
+            heuristic_suggestion.next_version
+            if heuristic_suggestion.should_release
+            else None
+        )
+        ai_version = (
+            ai_suggestion.next_version
+            if ai_suggestion and ai_suggestion.should_release
+            else None
+        )
+        if (
+            heuristic_suggestion.should_release
+            and ai_suggestion is not None
+            and ai_suggestion.should_release
+            and heuristic_suggestion.release_type == ai_suggestion.release_type
+            and heuristic_version is not None
+            and heuristic_version == ai_version
+        ):
+            return heuristic_version
+        return None
+
+    return prompt_release_choice(
+        heuristic_suggestion,
+        ai_suggestion,
+        first_stable_hint,
+    )
+
+
+def handle_post_commit_actions(
+    cwd: Path,
+    heuristic_suggestion,
+    ai_suggestion,
+    release_decision,
+    first_stable_hint,
+    *,
+    debug: bool = False,
+    non_interactive: bool = False,
+) -> None:
+    print_release_evaluation_summary(
+        heuristic_suggestion,
+        ai_suggestion,
+        release_decision,
+    )
+
+    print_heuristic_release_suggestion_from_result(
+        heuristic_suggestion,
+        debug=debug,
+    )
+
+    print_ai_release_suggestion_from_result(
+        ai_suggestion,
+        debug=debug,
+    )
+
+    if heuristic_suggestion.should_release or (ai_suggestion and ai_suggestion.should_release):
+        print_first_stable_release_hint(first_stable_hint)
+
+    release_version = choose_release_version(
+        heuristic_suggestion,
+        ai_suggestion,
+        first_stable_hint,
+        non_interactive=non_interactive,
+    )
+
+    if release_version is not None:
+        try:
+            apply_release(cwd, release_version)
+        except GitError as exc:
+            print(
+                f"Warning: release could not be created: {exc}",
+                file=sys.stderr,
+            )
+        return
+
+    if non_interactive:
+        try:
+            git_push(cwd)
+        except GitError as exc:
+            print(f"Warning: commit could not be pushed: {exc}", file=sys.stderr)
+            return
+        print("⬆ Commit pushed to origin.")
+        return
+
+    while True:
+        action = prompt_push_after_commit()
+
+        if action == "1":
+            try:
+                git_push(cwd)
+            except GitError as exc:
+                print(f"Warning: commit could not be pushed: {exc}", file=sys.stderr)
+                return
+            print("⬆ Commit pushed to origin.")
+            return
+
+        if action == "0":
+            return
+
+        print("Invalid option.")
+
+
 def main() -> None:
     args = parse_args()
     cwd = Path.cwd()
+    non_interactive = getattr(args, "non_interactive", getattr(args, "yes", False))
 
     if not is_git_repo(cwd):
         print("Error: not inside a Git repository.", file=sys.stderr)
@@ -856,7 +1117,11 @@ def main() -> None:
         print("No changes detected.")
         sys.exit(0)
 
-    maybe_handle_upstream_sync(cwd, clean_worktree=not bool(status.strip()))
+    maybe_handle_upstream_sync(
+        cwd,
+        clean_worktree=not bool(status.strip()),
+        non_interactive=non_interactive,
+    )
 
     selectable_files = filter_selectable_files(changed_files)
 
@@ -869,52 +1134,28 @@ def main() -> None:
 
     print(f"📦 Repository: {repo_root}")
 
-    if args.all_files:
-        print_changed_files(selectable_files)
-        selected_files = list(selectable_files)
-    else:
-        print_numbered_files(selectable_files)
-        prompted_selection = prompt_file_selection(selectable_files)
-        selected_files = list(selectable_files) if prompted_selection is None else prompted_selection
-
-    if not args.all_files:
-        print()
-        print_selected_files(selected_files)
+    selected_files = select_files_for_analysis(args, selectable_files)
 
     if ai_config.debug:
         print()
         print_ai_config(ai_config)
 
-    while True:
-        result = generate_and_display_commit_message(
-            cwd=cwd,
-            ai_config=ai_config,
-            selected_files=selected_files,
-        )
-
-        action = prompt_user_action()
-
-        if action == "1":
-            final_message = result.message
-            break
-        elif action == "2":
-            edited_message = prompt_edit_commit_message(result.message)
-            if not edited_message:
-                print("Empty commit message. Cancelled.")
-                sys.exit(1)
-            final_message = edited_message
-            break
-        elif action == "3":
-            print("\n🔁 Regenerating commit message...")
-            continue
-        else:
-            print("Cancelled.")
-            sys.exit(0)
+    final_message = resolve_commit_message(
+        cwd,
+        ai_config,
+        selected_files,
+        non_interactive=non_interactive,
+    )
 
     try:
         update_changelog(cwd, final_message)
 
-        readme_applied = maybe_handle_readme_update(cwd, ai_config, dry_run=args.dry_run)
+        readme_applied = maybe_handle_readme_update(
+            cwd,
+            ai_config,
+            dry_run=args.dry_run,
+            non_interactive=non_interactive,
+        )
 
         heuristic_suggestion, ai_suggestion, release_decision = evaluate_release_suggestions(
             cwd,
@@ -934,30 +1175,15 @@ def main() -> None:
             files_to_stage.append("README.md")
 
         if args.dry_run:
-            print("\n🧪 Dry run enabled: no commit was created.")
-            print(f"💬 Suggested final commit message: {final_message}")
-
-            if files_to_stage:
-                print("\nFiles to include:")
-                for file_path in files_to_stage:
-                    print(f"  - {file_path}")
-
-            print_release_evaluation_summary(
+            print_dry_run_summary(
+                final_message,
+                files_to_stage,
                 heuristic_suggestion,
                 ai_suggestion,
                 release_decision,
-            )
-
-            print_heuristic_release_suggestion_from_result(
-                heuristic_suggestion,
+                first_stable_hint,
                 debug=ai_config.debug,
             )
-            print_ai_release_suggestion_from_result(
-                ai_suggestion,
-                debug=ai_config.debug,
-            )
-            print_first_stable_release_hint(first_stable_hint)
-
             sys.exit(0)
 
         try:
@@ -982,57 +1208,14 @@ def main() -> None:
 
     print("\n✅ Commit created successfully.\n")
     print(commit_output)
-
-    print_release_evaluation_summary(
+    handle_post_commit_actions(
+        cwd,
         heuristic_suggestion,
         ai_suggestion,
         release_decision,
-    )
-
-    print_heuristic_release_suggestion_from_result(
-        heuristic_suggestion,
-        debug=ai_config.debug,
-    )
-
-    print_ai_release_suggestion_from_result(
-        ai_suggestion,
-        debug=ai_config.debug,
-    )
-
-    if heuristic_suggestion.should_release or (ai_suggestion and ai_suggestion.should_release):
-        print_first_stable_release_hint(first_stable_hint)
-
-    release_version = prompt_release_choice(
-        heuristic_suggestion,
-        ai_suggestion,
         first_stable_hint,
+        debug=ai_config.debug,
+        non_interactive=non_interactive,
     )
-
-    if release_version is not None:
-        try:
-            apply_release(cwd, release_version)
-        except GitError as exc:
-            print(
-                f"Warning: release could not be created: {exc}",
-                file=sys.stderr,
-            )
-        return
-
-    while True:
-        action = prompt_push_after_commit()
-
-        if action == "1":
-            try:
-                git_push(cwd)
-            except GitError as exc:
-                print(f"Warning: commit could not be pushed: {exc}", file=sys.stderr)
-                return
-            print("⬆ Commit pushed to origin.")
-            return
-
-        if action == "0":
-            return
-
-        print("Invalid option.")
 if __name__ == "__main__":
     main()
