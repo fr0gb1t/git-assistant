@@ -6,23 +6,15 @@
 
 ## AI‑powered Git commit and release workflow assistant.
 
-`git-assistant` analyzes your Git changes, generates high‑quality commit messages using AI, updates your `CHANGELOG.md` automatically, suggests when a new release may be appropriate, and pushes releases to remote repositories.
-It is designed to streamline the **entire commit → changelog → release workflow** while staying fast, safe, and developer-friendly.
+`git-assistant` analyzes your Git changes, generates high‑quality commit messages using AI, updates your `CHANGELOG.md` automatically, suggests when a new release may be appropriate, and pushes releases to remote repositories. It is designed to streamline the **entire commit → changelog → release workflow** while staying fast, safe, and developer-friendly.
 
 ------------------------------------------------------------------------
 ## ✨ Features
 - 🤖 **AI commit message generation**
+  - Readline support for interactive editing
 - 🔢 Range selection support (`1-4,7,9`)
 - ⚡ Fast workflow with `--all-files`
 - 🧪 Safe testing with `--dry-run`
-- 📝 **Automatic `CHANGELOG.md` updates**
-  - The entry is derived from the generated commit message.
-  - `CHANGELOG.md` is **automatically staged**.
-  - When using `--dry-run`, the changelog is restored afterward.
-- 💥 **Automated version number synchronization**
-  - Synchronizes version numbers across `pyproject.toml` and package init file.
-- 🌐 Additional AI providers (planned)
-
 ------------------------------------------------------------------------
 ## ⚡ Quick Usage
 ### Interactive commit workflow
@@ -41,7 +33,6 @@ git-assistant --dry-run
 ``` bash
 git-assistant --debug
 ```
-
 ------------------------------------------------------------------------
 ## 📦 Installation
 Clone the repository and install in editable mode:
@@ -54,7 +45,6 @@ Run the tool:
 ``` bash
 git-assistant
 ```
-
 ------------------------------------------------------------------------
 ## 📂 File Selection
 You can select files using:
@@ -74,7 +64,6 @@ Special option:
     0
 ```
 Includes **all selectable files**.
-
 ------------------------------------------------------------------------
 ## 📝 CHANGELOG Behavior
 
@@ -84,25 +73,24 @@ Includes **all selectable files**.
 - `CHANGELOG.md` is **automatically staged**.
 - When using `--dry-run`, the changelog is restored afterward.
 - Synchronizes version numbers across `pyproject.toml` and package init file.
-
 ------------------------------------------------------------------------
 ## 🚀 Release Suggestions
-
 After each successful commit, the tool analyzes `CHANGELOG.md` and suggests whether a release should occur. The tool also supports pushing releases to remote repositories automatically. Two mechanisms are used:
 
 ### Heuristic evaluation
 Rules based on changelog structure.
 
 ### AI evaluation
-
 An optional AI analysis of the `Unreleased` section in `CHANGELOG.md`.
 
 Version detection priority:
 - 1️⃣ Latest Git tag
 - 2️⃣ Latest version in `CHANGELOG.md`
 - 3️⃣ Fallback version
-
 ------------------------------------------------------------------------
-## 🛣 Roadmap
+## 🛣️ Roadmap
 Planned features:
 - 🌐 Additional AI providers
+------------------------------------------------------------------------
+## 📜 LICENSE
+MIT

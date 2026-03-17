@@ -4,6 +4,11 @@ import argparse
 import sys
 from pathlib import Path
 
+try:
+    import readline
+except ImportError:  # pragma: no cover
+    readline = None
+
 from git_assistant.ai.base import AIConfig, AIProviderError
 from git_assistant.changelog.entry import build_changelog_entry
 from git_assistant.changelog.writer import append_to_unreleased, get_changelog_path
@@ -302,6 +307,24 @@ def prompt_user_action() -> str:
     print("[3] Regenerate message")
     print("[4] Cancel")
     return input("> ").strip()
+
+
+def prompt_edit_commit_message(suggested_message: str) -> str:
+    prompt = "Edit commit message: "
+
+    if readline is None:
+        print(f"{prompt}{suggested_message}")
+        return input().strip()
+
+    def _prefill() -> None:
+        readline.insert_text(suggested_message)
+        readline.redisplay()
+
+    try:
+        readline.set_pre_input_hook(_prefill)
+        return input(prompt).strip()
+    finally:
+        readline.set_pre_input_hook(None)
 
 def prompt_readme_update_action() -> str:
     print("\n📘 README update available:")
@@ -698,7 +721,7 @@ def main() -> None:
             final_message = result.message
             break
         elif action == "2":
-            edited_message = input("Enter commit message: ").strip()
+            edited_message = prompt_edit_commit_message(result.message)
             if not edited_message:
                 print("Empty commit message. Cancelled.")
                 sys.exit(1)

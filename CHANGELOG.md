@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- add readline support for commit message editing
+
 ## [0.5.3] - 2026-03-17
 
 ### Changed
