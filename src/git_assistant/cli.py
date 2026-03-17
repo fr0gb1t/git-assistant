@@ -23,8 +23,10 @@ from git_assistant.git.ops import (
     get_changed_files,
     get_repo_root,
     get_status_short,
+    get_upstream_status,
     git_add_files,
     git_commit,
+    git_pull_ff_only,
     is_git_repo,
     git_push,
     git_push_tag,
@@ -342,6 +344,26 @@ def prompt_user_action() -> str:
     return input("> ").strip()
 
 
+def prompt_sync_action(clean_worktree: bool) -> str:
+    print("\n⚠ Remote branch has new commits.")
+    if clean_worktree:
+        print("[1] Pull now")
+        print("[2] Continue anyway")
+        print("[0] Cancel")
+    else:
+        print("Local changes detected; automatic pull is disabled for safety.")
+        print("[1] Continue anyway")
+        print("[0] Cancel")
+    return input("> ").strip()
+
+
+def prompt_push_after_commit() -> str:
+    print("\n⚙ Push commit to origin?")
+    print("[1] Push commit")
+    print("[0] Skip")
+    return input("> ").strip()
+
+
 def prompt_edit_commit_message(suggested_message: str) -> str:
     prompt = "Edit commit message: "
 
@@ -358,6 +380,48 @@ def prompt_edit_commit_message(suggested_message: str) -> str:
         return input(prompt).strip()
     finally:
         readline.set_pre_input_hook(None)
+
+
+def maybe_handle_upstream_sync(cwd: Path, *, clean_worktree: bool) -> None:
+    try:
+        upstream = get_upstream_status(cwd)
+    except GitError as exc:
+        print(f"Warning: could not determine upstream sync status: {exc}", file=sys.stderr)
+        return
+
+    if not upstream.has_upstream or upstream.behind <= 0:
+        return
+
+    print("\n🌐 Upstream status:")
+    print(f"- behind: {upstream.behind}")
+    if upstream.ahead > 0:
+        print(f"- ahead: {upstream.ahead}")
+    if upstream.upstream_ref:
+        print(f"- upstream: {upstream.upstream_ref}")
+
+    while True:
+        action = prompt_sync_action(clean_worktree)
+
+        if clean_worktree and action == "1":
+            try:
+                git_pull_ff_only(cwd)
+            except GitError as exc:
+                print(f"Git error while pulling latest changes: {exc}", file=sys.stderr)
+                sys.exit(1)
+            print("⬇ Repository updated with remote changes.")
+            return
+
+        if clean_worktree and action == "2":
+            return
+
+        if not clean_worktree and action == "1":
+            return
+
+        if action == "0":
+            print("Cancelled.")
+            sys.exit(0)
+
+        print("Invalid option.")
 
 def prompt_readme_update_action() -> str:
     print("\n📘 README update available:")
@@ -502,10 +566,10 @@ def prompt_release_choice(
     options: dict[str, str] = {}
     next_option = 1
 
-    print("\n⚙ Apply a release?")
-
     heuristic_version = heuristic.next_version if heuristic.should_release else None
     ai_version = ai.next_version if ai and ai.should_release else None
+
+    lines: list[str] = []
 
     if (
         heuristic.should_release
@@ -515,18 +579,18 @@ def prompt_release_choice(
         and heuristic_version is not None
         and heuristic_version == ai_version
     ):
-        print(f"[1] Release {heuristic_version}")
+        lines.append(f"[1] Release {heuristic_version}")
         options["1"] = heuristic_version
         next_option += 1
     elif heuristic.should_release and heuristic_version:
         option = str(next_option)
-        print(f"[{option}] Release {heuristic_version} (heuristic)")
+        lines.append(f"[{option}] Release {heuristic_version} (heuristic)")
         options[option] = heuristic_version
         next_option += 1
 
     if ai and ai.should_release and ai_version and ai_version not in options.values():
         option = str(next_option)
-        print(f"[{option}] Release {ai_version} (AI)")
+        lines.append(f"[{option}] Release {ai_version} (AI)")
         options[option] = ai_version
         next_option += 1
 
@@ -537,9 +601,15 @@ def prompt_release_choice(
         and first_stable_hint.version not in options.values()
     ):
         option = str(next_option)
-        print(f"[{option}] Release {first_stable_hint.version} (first stable)")
+        lines.append(f"[{option}] Release {first_stable_hint.version} (first stable)")
         options[option] = first_stable_hint.version
 
+    if not options:
+        return None
+
+    print("\n⚙ Apply a release?")
+    for line in lines:
+        print(line)
     print("[0] Skip")
 
     choice = input("> ").strip()
@@ -786,6 +856,8 @@ def main() -> None:
         print("No changes detected.")
         sys.exit(0)
 
+    maybe_handle_upstream_sync(cwd, clean_worktree=not bool(status.strip()))
+
     selectable_files = filter_selectable_files(changed_files)
 
     if not selectable_files:
@@ -944,5 +1016,23 @@ def main() -> None:
                 f"Warning: release could not be created: {exc}",
                 file=sys.stderr,
             )
+        return
+
+    while True:
+        action = prompt_push_after_commit()
+
+        if action == "1":
+            try:
+                git_push(cwd)
+            except GitError as exc:
+                print(f"Warning: commit could not be pushed: {exc}", file=sys.stderr)
+                return
+            print("⬆ Commit pushed to origin.")
+            return
+
+        if action == "0":
+            return
+
+        print("Invalid option.")
 if __name__ == "__main__":
     main()

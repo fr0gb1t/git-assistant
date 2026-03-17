@@ -4,8 +4,9 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from git_assistant.git.ops import get_changed_files, get_untracked_files
+from git_assistant.git.ops import get_changed_files, get_untracked_files, get_upstream_status
 
 
 class GitOpsStatusParsingTests(unittest.TestCase):
@@ -37,6 +38,22 @@ class GitOpsStatusParsingTests(unittest.TestCase):
             self._git(repo, "add", "-A")
 
             self.assertIn("new name.txt", get_changed_files(repo))
+
+    def test_get_upstream_status_parses_ahead_and_behind_counts(self) -> None:
+        def fake_run_git_command(args: list[str], cwd: Path | None = None) -> str:
+            if args == ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"]:
+                return "origin/main"
+            if args == ["rev-list", "--left-right", "--count", "origin/main...HEAD"]:
+                return "2 1"
+            raise AssertionError(f"Unexpected git command: {args}")
+
+        with patch("git_assistant.git.ops.run_git_command", side_effect=fake_run_git_command):
+            status = get_upstream_status(Path("."))
+
+        self.assertTrue(status.has_upstream)
+        self.assertEqual(status.behind, 2)
+        self.assertEqual(status.ahead, 1)
+        self.assertEqual(status.upstream_ref, "origin/main")
 
     def _git(self, cwd: Path, *args: str) -> str:
         result = subprocess.run(

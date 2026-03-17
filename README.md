@@ -16,8 +16,10 @@
 - 🔢 Range selection support (`1-4,7,9`)
 - ⚡ Fast workflow with `--all-files`
 - 🧪 Safe testing with `--dry-run`
-- 👀 Preview pair functionality for concurrent file viewing
+- 👀 Preview and diff visualization before applying README.md changes
 - 📝 **First stable release hint** in CLI
+- 💡 **Upstream sync and push prompts** to handle remote repository management
+
 ------------------------------------------------------------------------
 ## ⚡ Quick Usage
 ### Interactive commit workflow
@@ -106,6 +108,7 @@ Version detection priority:
 ## 🛣️ Roadmap
 Planned features:
 - 🌐 Additional AI providers
+
 ------------------------------------------------------------------------
 ## 📜 LICENSE
 MIT

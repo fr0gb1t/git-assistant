@@ -1,11 +1,20 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import subprocess
 from pathlib import Path
 
 
 class GitError(RuntimeError):
     """Raised when a git command fails."""
+
+
+@dataclass(slots=True)
+class UpstreamStatus:
+    has_upstream: bool
+    ahead: int
+    behind: int
+    upstream_ref: str | None = None
 
 
 def run_git_command(args: list[str], cwd: Path | None = None) -> str:
@@ -54,6 +63,35 @@ def get_repo_root(cwd: Path | None = None) -> Path:
     """
     output = run_git_command(["rev-parse", "--show-toplevel"], cwd=cwd)
     return Path(output)
+
+
+def get_upstream_status(cwd: Path | None = None) -> UpstreamStatus:
+    """
+    Return ahead/behind information against the current branch upstream.
+    """
+    try:
+        upstream_ref = run_git_command(
+            ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+            cwd=cwd,
+        )
+    except GitError:
+        return UpstreamStatus(has_upstream=False, ahead=0, behind=0, upstream_ref=None)
+
+    counts = run_git_command(
+        ["rev-list", "--left-right", "--count", f"{upstream_ref}...HEAD"],
+        cwd=cwd,
+    )
+    parts = counts.split()
+    if len(parts) != 2:
+        raise GitError(f"Unexpected upstream status output: {counts}")
+
+    behind, ahead = (int(part) for part in parts)
+    return UpstreamStatus(
+        has_upstream=True,
+        ahead=ahead,
+        behind=behind,
+        upstream_ref=upstream_ref,
+    )
 
 
 def get_status_short(cwd: Path | None = None) -> str:
@@ -263,3 +301,7 @@ def git_push(cwd: Path) -> None:
 
 def git_push_tag(cwd: Path, tag: str) -> None:
     run_git_command(["push", "origin", tag], cwd)
+
+
+def git_pull_ff_only(cwd: Path) -> None:
+    run_git_command(["pull", "--ff-only"], cwd)
