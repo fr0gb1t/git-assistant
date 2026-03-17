@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- automate version number synchronization across pyproject.toml and package init file
+
 ## [0.5.0] - 2026-03-17
 
 ### Added

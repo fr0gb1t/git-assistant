@@ -63,35 +63,50 @@ def get_status_short(cwd: Path | None = None) -> str:
     return run_git_command(["status", "--porcelain", "--untracked-files=all"], cwd=cwd)
 
 
+def get_status_entries(cwd: Path | None = None) -> list[tuple[str, str]]:
+    """
+    Return parsed `(status_code, path)` entries from `git status --porcelain -z`.
+
+    The `-z` format avoids shell-style quoting, so paths with spaces or other
+    special characters are returned exactly as Git stores them.
+    """
+    output = run_git_command(
+        ["status", "--porcelain", "-z", "--untracked-files=all"],
+        cwd=cwd,
+    )
+    if not output:
+        return []
+
+    parts = output.split("\0")
+    entries: list[tuple[str, str]] = []
+    index = 0
+
+    while index < len(parts):
+        entry = parts[index]
+        if not entry:
+            index += 1
+            continue
+
+        status_code = entry[:2]
+        path = entry[3:]
+
+        # In porcelain -z mode, renames/copies use an extra NUL-terminated
+        # path entry. The first path is the current path we want to expose;
+        # the second one is the source path and should be skipped.
+        if status_code[0] in {"R", "C"} and index + 1 < len(parts):
+            index += 1
+
+        entries.append((status_code, path))
+        index += 1
+
+    return entries
+
+
 def get_changed_files(cwd: Path | None = None) -> list[str]:
     """
     Return changed file paths parsed from `git status --porcelain`.
     """
-    status = get_status_short(cwd=cwd)
-
-    if not status:
-        return []
-
-    files: list[str] = []
-
-    for raw_line in status.splitlines():
-        line = raw_line.rstrip()
-
-        if not line:
-            continue
-
-        if len(line) < 4:
-            continue
-
-        path_part = line[3:]
-
-        if " -> " in path_part:
-            _, new_path = path_part.split(" -> ", 1)
-            files.append(new_path.strip())
-        else:
-            files.append(path_part.strip())
-
-    return files
+    return [path for _, path in get_status_entries(cwd=cwd)]
 
 def git_add_all(cwd: Path | None = None) -> None:
     """
@@ -192,23 +207,11 @@ def get_untracked_files(cwd: Path | None = None) -> list[str]:
     """
     Return untracked files from `git status --porcelain`.
     """
-    status = get_status_short(cwd=cwd)
-
-    if not status:
-        return []
-
-    files: list[str] = []
-
-    for raw_line in status.splitlines():
-        line = raw_line.rstrip()
-
-        if not line.startswith("?? "):
-            continue
-
-        path_part = line[3:].strip()
-        files.append(path_part)
-
-    return files
+    return [
+        path
+        for status_code, path in get_status_entries(cwd=cwd)
+        if status_code == "??"
+    ]
 
 
 def read_file_contents(

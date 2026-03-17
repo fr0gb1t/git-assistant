@@ -28,8 +28,8 @@ It is designed to streamline the **entire commit → changelog → release workf
 - 🚀 Automatic release creation and pushing to remote repositories
   - Heuristic evaluation based on changelog structure
   - Optional AI analysis of the `Unreleased` section in `CHANGELOG.md`
-- 🔄 **Version bump automation**
-  - Automatically detects version bumps based on changelog entries.
+- **Automated version number synchronization**
+  - Synchronizes version numbers across `pyproject.toml` and package init file.
 ------------------------------------------------------------------------
 ## ⚡ Quick Usage
 ### Interactive commit workflow

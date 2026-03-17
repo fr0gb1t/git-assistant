@@ -37,7 +37,11 @@ from git_assistant.readme.service import (
 from git_assistant.release.ai_evaluator import evaluate_release_with_ai
 from git_assistant.release.decision import decide_auto_release
 from git_assistant.release.evaluator import evaluate_release
-from git_assistant.release.executor import create_release_tag, prepare_release_changelog
+from git_assistant.release.executor import (
+    RELEASE_MANAGED_FILES,
+    create_release_tag,
+    prepare_release_changelog,
+)
 
 
 CHANGELOG_FILE = "CHANGELOG.md"
@@ -100,17 +104,28 @@ def parse_args() -> argparse.Namespace:
 def restore_managed_files(cwd: Path) -> None:
     """
     Restore managed files (CHANGELOG.md, README.md) to their last committed
-    state via git checkout. Files that don\'t exist in the last commit are
+    state via git checkout. Files that don't exist in the last commit are
     deleted if they were created during this workflow.
     """
     for file_path in [CHANGELOG_FILE, README_FILE]:
         abs_path = cwd / file_path
-        try:
+        if _path_exists_in_head(cwd, file_path):
             run_git_command(["checkout", "--", file_path], cwd=cwd)
-        except GitError:
-            # File not tracked (e.g. newly generated README) — remove it
-            if abs_path.exists():
-                abs_path.unlink()
+            continue
+
+        if abs_path.exists():
+            abs_path.unlink()
+
+
+def _path_exists_in_head(cwd: Path, file_path: str) -> bool:
+    """
+    Return True when the path exists in HEAD.
+    """
+    try:
+        run_git_command(["cat-file", "-e", f"HEAD:{file_path}"], cwd=cwd)
+        return True
+    except GitError:
+        return False
 
 
 def filter_selectable_files(changed_files: list[str]) -> list[str]:
@@ -375,18 +390,21 @@ def prompt_release_choice(
     heuristic,
     ai,
 ) -> str | None:
-
-    options = {}
+    options: dict[str, str] = {}
+    next_option = 1
 
     print("\n⚙ Apply a release?")
-    
+
     if heuristic.should_release and heuristic.next_version:
-        print(f"[1] Release {heuristic.next_version} (heuristic)")
-        options["1"] = heuristic.next_version
+        option = str(next_option)
+        print(f"[{option}] Release {heuristic.next_version} (heuristic)")
+        options[option] = heuristic.next_version
+        next_option += 1
 
     if ai and ai.should_release and ai.next_version:
-        print(f"[2] Release {ai.next_version} (AI)")
-        options["2"] = ai.next_version
+        option = str(next_option)
+        print(f"[{option}] Release {ai.next_version} (AI)")
+        options[option] = ai.next_version
 
     print("[0] Skip")
 
@@ -410,7 +428,7 @@ def apply_release(
         return
 
     try:
-        git_add_files([CHANGELOG_FILE], cwd)
+        git_add_files(RELEASE_MANAGED_FILES, cwd)
         git_commit(f"chore(release): publish v{version}", cwd)
     except GitError as exc:
         print(f"Git error while creating release commit: {exc}", file=sys.stderr)
