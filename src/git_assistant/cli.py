@@ -46,7 +46,7 @@ from git_assistant.readme.service import (
 )
 from git_assistant.release.ai_evaluator import evaluate_release_with_ai
 from git_assistant.release.decision import decide_auto_release
-from git_assistant.release.evaluator import evaluate_release
+from git_assistant.release.evaluator import evaluate_first_stable_hint, evaluate_release
 from git_assistant.release.executor import (
     RELEASE_MANAGED_FILES,
     create_release_tag,
@@ -714,6 +714,15 @@ def print_ai_release_suggestion_from_result(suggestion, debug: bool = False) -> 
     print(f"Reason: {suggestion.reason}")
 
 
+def print_first_stable_release_hint(hint) -> None:
+    if not hint.should_suggest or hint.version is None:
+        return
+
+    print("\n🌱 Stable release hint:")
+    print(f"- reason: {hint.reason}")
+    print(f"- consider: git-assistant --release {hint.version}")
+
+
 def main() -> None:
     args = parse_args()
     cwd = Path.cwd()
@@ -810,6 +819,7 @@ def main() -> None:
             cwd,
             ai_config,
         )
+        first_stable_hint = evaluate_first_stable_hint(cwd, get_changelog_path(cwd))
 
         files_to_stage = list(selected_files)
 
@@ -844,6 +854,7 @@ def main() -> None:
                 ai_suggestion,
                 debug=ai_config.debug,
             )
+            print_first_stable_release_hint(first_stable_hint)
 
             sys.exit(0)
 
@@ -885,6 +896,9 @@ def main() -> None:
         ai_suggestion,
         debug=ai_config.debug,
     )
+
+    if heuristic_suggestion.should_release or (ai_suggestion and ai_suggestion.should_release):
+        print_first_stable_release_hint(first_stable_hint)
 
     release_version = prompt_release_choice(
         heuristic_suggestion,

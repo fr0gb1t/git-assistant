@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 from git_assistant.git.tags import get_latest_git_tag
-from git_assistant.release.versioning import bump_version
+from git_assistant.release.versioning import bump_version, parse_version
 
 UNRELEASED_HEADER = "## [Unreleased]"
 VERSION_HEADER_RE = re.compile(r"^## \[(\d+\.\d+\.\d+)\]", re.MULTILINE)
@@ -48,6 +48,10 @@ MAJOR_CHANGE_KEYWORDS = {
     "remove",
     "migration",
 }
+FIRST_STABLE_VERSION = "1.0.0"
+FIRST_STABLE_MIN_MINOR = 7
+FIRST_STABLE_MIN_RELEASES = 5
+FIRST_STABLE_MIN_ENTRIES = 20
 
 
 @dataclass(slots=True)
@@ -55,6 +59,13 @@ class ReleaseSuggestion:
     should_release: bool
     release_type: str | None
     next_version: str | None
+    reason: str
+
+
+@dataclass(slots=True)
+class StableReleaseHint:
+    should_suggest: bool
+    version: str | None
     reason: str
 
 
@@ -132,6 +143,38 @@ def count_section_entries(unreleased_block: str, section_name: str) -> int:
     return count
 
 
+def count_released_history(changelog_text: str) -> tuple[int, int]:
+    """
+    Count released version blocks and bullet entries outside [Unreleased].
+    """
+    released_versions = 0
+    released_entries = 0
+    inside_released_block = False
+
+    for raw_line in changelog_text.splitlines():
+        line = raw_line.strip()
+
+        if not line:
+            continue
+
+        if line == UNRELEASED_HEADER:
+            inside_released_block = False
+            continue
+
+        version_match = VERSION_HEADER_RE.match(line)
+        if version_match:
+            version = parse_version(version_match.group(1))
+            inside_released_block = version.major == 0
+            if inside_released_block:
+                released_versions += 1
+            continue
+
+        if inside_released_block and line.startswith("- "):
+            released_entries += 1
+
+    return released_versions, released_entries
+
+
 def extract_section_entries(unreleased_block: str) -> dict[str, list[str]]:
     """
     Parse bullet entries from the changelog by section name.
@@ -177,6 +220,63 @@ def looks_like_user_facing_change(entry: str) -> bool:
 def looks_like_major_change(entry: str) -> bool:
     normalized = _normalize_entry(entry)
     return any(keyword in normalized for keyword in MAJOR_CHANGE_KEYWORDS)
+
+
+def evaluate_first_stable_hint(cwd: Path, changelog_path: Path) -> StableReleaseHint:
+    """
+    Suggest considering 1.0.0 when a pre-1.0 project shows enough release history.
+    """
+    if not changelog_path.exists():
+        return StableReleaseHint(
+            should_suggest=False,
+            version=None,
+            reason="CHANGELOG.md does not exist yet.",
+        )
+
+    changelog_text = changelog_path.read_text(encoding="utf-8")
+    current_version = parse_version(get_current_version(cwd, changelog_text))
+
+    if current_version.major != 0:
+        return StableReleaseHint(
+            should_suggest=False,
+            version=None,
+            reason="Project is already on a stable major version.",
+        )
+
+    if current_version.minor < FIRST_STABLE_MIN_MINOR:
+        return StableReleaseHint(
+            should_suggest=False,
+            version=None,
+            reason=(
+                f"Current version is below 0.{FIRST_STABLE_MIN_MINOR}.0, "
+                "so a first stable release hint would be premature."
+            ),
+        )
+
+    released_versions, released_entries = count_released_history(changelog_text)
+
+    if released_versions < FIRST_STABLE_MIN_RELEASES:
+        return StableReleaseHint(
+            should_suggest=False,
+            version=None,
+            reason="Release history is still too short for a first stable release hint.",
+        )
+
+    if released_entries < FIRST_STABLE_MIN_ENTRIES:
+        return StableReleaseHint(
+            should_suggest=False,
+            version=None,
+            reason="Changelog history is still too small for a first stable release hint.",
+        )
+
+    return StableReleaseHint(
+        should_suggest=True,
+        version=FIRST_STABLE_VERSION,
+        reason=(
+            "Project is still on 0.x, but accumulated release history suggests it may be "
+            "ready for a first stable 1.0.0 release."
+        ),
+    )
 
 
 def evaluate_release(cwd: Path, changelog_path: Path) -> ReleaseSuggestion:

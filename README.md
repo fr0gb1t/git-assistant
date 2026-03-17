@@ -16,25 +16,30 @@
 - ⚡ Fast workflow with `--all-files`
 - 🧪 Safe testing with `--dry-run`
 - 👀 Preview pair functionality for concurrent file viewing
+- 📝 **First stable release hint** in CLI
 ------------------------------------------------------------------------
 ## ⚡ Quick Usage
 ### Interactive commit workflow
 ``` bash
 git-assistant
 ```
+
 ### Include all files automatically
 ``` bash
 git-assistant --all-files
 ```
+
 ### Test workflow without committing
 ``` bash
 git-assistant --dry-run
 ```
+
 ### Enable debug diagnostics
 ``` bash
 git-assistant --debug
 ```
-#### Manual release option for specifying version directly
+
+### Manual release option for specifying version directly
 ``` bash
 git-assistant --release 1.0.0
 ```

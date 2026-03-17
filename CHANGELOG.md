@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- add first stable release hint in CLI
+
 ## [0.7.3] - 2026-03-17
 
 ### Added
