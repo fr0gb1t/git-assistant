@@ -664,8 +664,9 @@ def main() -> None:
         prompted_selection = prompt_file_selection(selectable_files)
         selected_files = list(selectable_files) if prompted_selection is None else prompted_selection
 
-    print()
-    print_selected_files(selected_files)
+    if not args.all_files:
+        print()
+        print_selected_files(selected_files)
 
     if ai_config.debug:
         print()

@@ -30,6 +30,10 @@ CONTENT RULES:
 - Focus on the purpose of the change, not implementation details.
 - Avoid phrases like "update X and related changes".
 - Do not list files unless necessary.
+- Do not describe existing behavior as a new feature if the change only adjusts,
+  hides, renames, deduplicates, or reorders existing output or control flow.
+- Prefer fix or refactor over feat when the change corrects misleading UX,
+  removes redundant output, or tightens existing behavior.
 
 SPECIAL CASES:
 - If binary or non-text files are included, mention them using their filenames only.
