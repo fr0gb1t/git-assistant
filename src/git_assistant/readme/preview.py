@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import difflib
+import os
+import platform
 import shutil
 import subprocess
-import webbrowser
 from os import environ
 from pathlib import Path
 
@@ -54,12 +55,30 @@ def cleanup_preview_files(cwd: Path) -> None:
 
 
 def open_preview_file(path: Path) -> None:
-    webbrowser.open(path.resolve().as_uri())
+    command = _resolve_opener_command(path)
+    if command is None:
+        return
+
+    with open(os.devnull, "wb") as devnull:
+        subprocess.Popen(
+            command,
+            stdout=devnull,
+            stderr=devnull,
+            start_new_session=True,
+        )
 
 
 def open_preview_pair(preview_path: Path, diff_path: Path) -> None:
     open_preview_file(preview_path)
-    open_preview_file(diff_path)
+    open_diff_file(diff_path)
+
+
+def open_diff_file(path: Path) -> None:
+    editor = _resolve_editor()
+    if editor is None:
+        return
+
+    subprocess.Popen([editor, str(path)], start_new_session=True)
 
 
 def open_preview_in_editor(path: Path) -> None:
@@ -78,5 +97,20 @@ def _resolve_editor() -> str | None:
     for candidate in ("nano", "vim", "vi"):
         if shutil.which(candidate):
             return candidate
+
+    return None
+
+
+def _resolve_opener_command(path: Path) -> list[str] | None:
+    system = platform.system()
+
+    if system == "Darwin":
+        return ["open", str(path)]
+
+    if system == "Windows":
+        return ["cmd", "/c", "start", "", str(path)]
+
+    if shutil.which("xdg-open"):
+        return ["xdg-open", str(path)]
 
     return None

@@ -82,10 +82,34 @@ class ReadmePreviewTests(unittest.TestCase):
                 updated_readme="# New\n",
             )
 
-            with patch("git_assistant.readme.preview.webbrowser.open") as mock_open:
-                open_preview_pair(preview_path, diff_path)
+            with patch("git_assistant.readme.preview.subprocess.Popen") as mock_popen:
+                with patch(
+                    "git_assistant.readme.preview._resolve_opener_command",
+                    return_value=["xdg-open", str(preview_path)],
+                ):
+                    with patch("git_assistant.readme.preview._resolve_editor", return_value="nano"):
+                        open_preview_pair(preview_path, diff_path)
 
-            self.assertEqual(mock_open.call_count, 2)
+            self.assertEqual(mock_popen.call_count, 2)
+
+    def test_open_preview_pair_skips_diff_autolaunch_without_editor(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cwd = Path(tmp_dir)
+            preview_path, diff_path = write_readme_preview_files(
+                cwd,
+                original_readme="# Old\n",
+                updated_readme="# New\n",
+            )
+
+            with patch("git_assistant.readme.preview.subprocess.Popen") as mock_popen:
+                with patch(
+                    "git_assistant.readme.preview._resolve_opener_command",
+                    return_value=["xdg-open", str(preview_path)],
+                ):
+                    with patch("git_assistant.readme.preview._resolve_editor", return_value=None):
+                        open_preview_pair(preview_path, diff_path)
+
+            mock_popen.assert_called_once()
 
 
 if __name__ == "__main__":
