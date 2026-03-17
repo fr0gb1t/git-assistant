@@ -38,6 +38,13 @@ _MAX_FILE_CHARS = 3_000
 _MAX_TOTAL_CHARS = 20_000
 
 
+def normalize_readme_text(text: str) -> str:
+    """
+    Normalize README content for equality checks.
+    """
+    return text.rstrip() + "\n" if text.strip() else ""
+
+
 def _build_source_context(cwd: Path) -> str | None:
     """
     Extract a lightweight source context from the codebase:
@@ -115,6 +122,14 @@ def evaluate_readme_update(cwd: Path, ai_config: AIConfig) -> ReadmeUpdateResult
 
     if "# " not in result.updated_readme:
         raise ReadmeUpdateError("Updated README appears invalid: missing top-level heading.")
+
+    if normalize_readme_text(result.updated_readme) == normalize_readme_text(readme_text):
+        return ReadmeUpdateResult(
+            should_update=False,
+            reason="Proposed README content is unchanged.",
+            updated_sections=[],
+            updated_readme=readme_text,
+        )
 
     return result
 

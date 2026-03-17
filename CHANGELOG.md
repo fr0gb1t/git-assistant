@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Changed
+- update preview and service modules for improved handling of browser commands and normalization
+
 ## [0.7.0] - 2026-03-17
 
 ### Added

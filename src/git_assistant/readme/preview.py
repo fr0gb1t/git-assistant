@@ -3,9 +3,9 @@ from __future__ import annotations
 import difflib
 import os
 import platform
+import shlex
 import shutil
 import subprocess
-import webbrowser
 from os import environ
 from pathlib import Path
 
@@ -56,7 +56,17 @@ def cleanup_preview_files(cwd: Path) -> None:
 
 
 def open_preview_file(path: Path) -> None:
-    webbrowser.open(path.resolve().as_uri())
+    command = _resolve_browser_command(path.resolve().as_uri())
+    if command is None:
+        return
+
+    with open(os.devnull, "wb") as devnull:
+        subprocess.Popen(
+            command,
+            stdout=devnull,
+            stderr=devnull,
+            start_new_session=True,
+        )
 
 
 def open_preview_pair(preview_path: Path, diff_path: Path) -> None:
@@ -98,16 +108,44 @@ def _resolve_editor() -> str | None:
     return None
 
 
-def _resolve_opener_command(path: Path) -> list[str] | None:
+def _resolve_opener_command(target: str) -> list[str] | None:
     system = platform.system()
 
     if system == "Darwin":
-        return ["open", str(path)]
+        return ["open", target]
 
     if system == "Windows":
-        return ["cmd", "/c", "start", "", str(path)]
+        return ["cmd", "/c", "start", "", target]
 
     if shutil.which("xdg-open"):
-        return ["xdg-open", str(path)]
+        return ["xdg-open", target]
 
     return None
+
+
+def _resolve_browser_command(target: str) -> list[str] | None:
+    configured = environ.get("BROWSER", "").strip()
+    if configured:
+        parts = shlex.split(configured)
+        if parts and shutil.which(parts[0]):
+            return [*parts, target]
+
+    if platform.system() == "Linux" and shutil.which("xdg-settings"):
+        try:
+            result = subprocess.run(
+                ["xdg-settings", "get", "default-web-browser"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError:
+            result = None
+
+        if result is not None and result.returncode == 0:
+            desktop_entry = result.stdout.strip()
+            if desktop_entry.endswith(".desktop"):
+                binary = desktop_entry[:-8]
+                if shutil.which(binary):
+                    return [binary, target]
+
+    return _resolve_opener_command(target)

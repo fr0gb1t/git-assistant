@@ -82,16 +82,18 @@ class ReadmePreviewTests(unittest.TestCase):
                 updated_readme="# New\n",
             )
 
-            with patch("git_assistant.readme.preview.webbrowser.open") as mock_open:
-                with patch("git_assistant.readme.preview.subprocess.Popen") as mock_popen:
+            with patch("git_assistant.readme.preview.subprocess.Popen") as mock_popen:
+                with patch(
+                    "git_assistant.readme.preview._resolve_browser_command",
+                    return_value=["firedragon", preview_path.resolve().as_uri()],
+                ):
                     with patch(
                         "git_assistant.readme.preview._resolve_opener_command",
                         return_value=["xdg-open", str(diff_path)],
                     ):
                         open_preview_pair(preview_path, diff_path)
 
-            mock_open.assert_called_once()
-            mock_popen.assert_called_once()
+            self.assertEqual(mock_popen.call_count, 2)
 
     def test_open_preview_pair_skips_diff_autolaunch_without_editor(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -102,13 +104,15 @@ class ReadmePreviewTests(unittest.TestCase):
                 updated_readme="# New\n",
             )
 
-            with patch("git_assistant.readme.preview.webbrowser.open") as mock_open:
-                with patch("git_assistant.readme.preview.subprocess.Popen") as mock_popen:
+            with patch("git_assistant.readme.preview.subprocess.Popen") as mock_popen:
+                with patch(
+                    "git_assistant.readme.preview._resolve_browser_command",
+                    return_value=["firedragon", preview_path.resolve().as_uri()],
+                ):
                     with patch("git_assistant.readme.preview._resolve_opener_command", return_value=None):
                         open_preview_pair(preview_path, diff_path)
 
-            mock_open.assert_called_once()
-            mock_popen.assert_not_called()
+            mock_popen.assert_called_once()
 
 
 if __name__ == "__main__":
