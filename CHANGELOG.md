@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-03-17
+
 ### Added
 - add dry run tests and improve README update rules
 
