@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-17
+
 ### Added
 - update prompt and evaluation logic for README updates
 
