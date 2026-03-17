@@ -4,7 +4,7 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Status](https://img.shields.io/badge/status-active-success) ![AI Powered](https://img.shields.io/badge/AI-powered-purple)
 
-**AI‑powered Git commit and release workflow assistant.**
+## AI‑powered Git commit and release workflow assistant.
 
 `git-assistant` analyzes your Git changes, generates high‑quality commit messages using AI, updates your `CHANGELOG.md` automatically, suggests when a new release may be appropriate, and pushes releases to remote repositories.
 It is designed to streamline the **entire commit → changelog → release workflow** while staying fast, safe, and developer-friendly.
@@ -18,18 +18,9 @@ It is designed to streamline the **entire commit → changelog → release workf
   - The entry is derived from the generated commit message.
   - `CHANGELOG.md` is **automatically staged**.
   - When using `--dry-run`, the changelog is restored afterward.
-- 💥 **AI-driven README updates in CLI workflow**
-- 🏷 Version detection via:
-  - Latest Git tag
-  - Changelog fallback
-- 🔌 Extensible AI provider architecture
-- 📦 Release workflow execution
-  - Pushes releases to remote repositories automatically after successful commits.
-- 🚀 Automatic release creation and pushing to remote repositories
-  - Heuristic evaluation based on changelog structure
-  - Optional AI analysis of the `Unreleased` section in `CHANGELOG.md`
-- **Automated version number synchronization**
+- 💥 **Automated version number synchronization**
   - Synchronizes version numbers across `pyproject.toml` and package init file.
+- 🌐 Additional AI providers (planned)
 ------------------------------------------------------------------------
 ## ⚡ Quick Usage
 ### Interactive commit workflow
@@ -66,8 +57,8 @@ You can select files using:
 ```text
     1,2,4
 ```
-Ranges:
 ```text
+Ranges:
     1-4
 ```
 Or combinations:
@@ -85,14 +76,19 @@ Includes **all selectable files**.
 - The entry is derived from the generated commit message.
 - `CHANGELOG.md` is **automatically staged**.
 - When using `--dry-run`, the changelog is restored afterward.
-- Pushes releases to remote repositories automatically after successful commits.
+- Synchronizes version numbers across `pyproject.toml` and package init file.
 ------------------------------------------------------------------------
 ## 🚀 Release Suggestions
+
 After each successful commit, the tool analyzes `CHANGELOG.md` and suggests whether a release should occur. The tool also supports pushing releases to remote repositories automatically.
 Two mechanisms are used:
+
 ### Heuristic evaluation
+
 Rules based on changelog structure.
+
 ### AI evaluation
+
 An optional AI analysis of the `Unreleased` section in `CHANGELOG.md`.
 Version detection priority:
 1️⃣ Latest Git tag

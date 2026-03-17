@@ -29,6 +29,9 @@ from git_assistant.readme.service import (
     ReadmeUpdateError,
     apply_generated_readme,
     apply_readme_update,
+    clear_readme_preview,
+    edit_generated_readme,
+    edit_readme_update,
     evaluate_readme_update,
     generate_initial_readme,
     preview_generated_readme,
@@ -304,7 +307,8 @@ def prompt_readme_update_action() -> str:
     print("\n📘 README update available:")
     print("[1] Apply update")
     print("[2] Preview update")
-    print("[3] Skip")
+    print("[3] Edit proposed README")
+    print("[4] Skip")
     return input("> ").strip()
 
 
@@ -312,11 +316,13 @@ def prompt_readme_generate_action() -> str:
     print("\n📘 No README.md found — generate one?")
     print("[1] Generate and apply")
     print("[2] Preview first")
-    print("[3] Skip")
+    print("[3] Edit before applying")
+    print("[4] Skip")
     return input("> ").strip()
 
 
 def maybe_handle_readme_update(cwd: Path, ai_config: AIConfig) -> bool:
+    clear_readme_preview(cwd)
     readme_path = cwd / README_FILE
 
     if not readme_path.exists():
@@ -345,6 +351,7 @@ def maybe_handle_readme_update(cwd: Path, ai_config: AIConfig) -> bool:
 
         if action == "1":
             apply_readme_update(cwd, result)
+            clear_readme_preview(cwd)
             print("📝 README.md updated.")
             return True
 
@@ -355,19 +362,32 @@ def maybe_handle_readme_update(cwd: Path, ai_config: AIConfig) -> bool:
             continue
 
         if action == "3":
+            try:
+                edit_readme_update(cwd, result)
+            except RuntimeError as exc:
+                print(f"Warning: {exc}", file=sys.stderr)
+                continue
+            clear_readme_preview(cwd)
+            print("📝 README.md updated from edited proposal.")
+            return True
+
+        if action == "4":
+            clear_readme_preview(cwd)
             return False
 
         print("Invalid option.")
 
 
 def _handle_readme_generation(cwd: Path, ai_config: AIConfig) -> bool:
+    clear_readme_preview(cwd)
     while True:
         action = prompt_readme_generate_action()
 
-        if action == "3":
+        if action == "4":
+            clear_readme_preview(cwd)
             return False
 
-        if action in ("1", "2"):
+        if action in ("1", "2", "3"):
             print("\n✨ Generating README.md...")
             try:
                 result = generate_initial_readme(cwd, ai_config)
@@ -381,7 +401,18 @@ def _handle_readme_generation(cwd: Path, ai_config: AIConfig) -> bool:
                 print(f"🧾 Diff saved at: {diff_path}")
                 continue
 
+            if action == "3":
+                try:
+                    edit_generated_readme(cwd, result)
+                except RuntimeError as exc:
+                    print(f"Warning: {exc}", file=sys.stderr)
+                    continue
+                clear_readme_preview(cwd)
+                print("📝 README.md generated from edited proposal.")
+                return True
+
             apply_generated_readme(cwd, result)
+            clear_readme_preview(cwd)
             print("📝 README.md generated.")
             return True
 

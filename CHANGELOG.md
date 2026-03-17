@@ -4,6 +4,7 @@
 
 ### Added
 - automate version number synchronization across pyproject.toml and package init file
+- add options to edit and clear README preview
 
 ### Changed
 - enhance version release decision logic in ai_evaluator.py and evaluator.py

@@ -19,6 +19,11 @@ from git_assistant.readme.prompt import (
     build_readme_update_prompt,
 )
 from git_assistant.readme.preview import open_preview_file, write_readme_preview_files
+from git_assistant.readme.preview import (
+    cleanup_preview_files,
+    open_preview_in_editor,
+    read_preview_readme,
+)
 from git_assistant.readme.writer import get_readme_path, write_updated_readme
 
 
@@ -198,3 +203,21 @@ def preview_generated_readme(cwd: Path, result: ReadmeGenerateResult) -> tuple[P
     preview_path, diff_path = prepare_generated_readme_preview(cwd, result)
     open_preview_file(preview_path)
     return preview_path, diff_path
+
+
+def edit_readme_update(cwd: Path, result: ReadmeUpdateResult) -> Path:
+    preview_path, _ = prepare_readme_preview(cwd, result)
+    open_preview_in_editor(preview_path)
+    edited_readme = read_preview_readme(cwd)
+    return write_updated_readme(cwd, edited_readme)
+
+
+def edit_generated_readme(cwd: Path, result: ReadmeGenerateResult) -> Path:
+    preview_path, _ = prepare_generated_readme_preview(cwd, result)
+    open_preview_in_editor(preview_path)
+    edited_readme = read_preview_readme(cwd)
+    return write_updated_readme(cwd, edited_readme)
+
+
+def clear_readme_preview(cwd: Path) -> None:
+    cleanup_preview_files(cwd)

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import difflib
+import shutil
+import subprocess
 import webbrowser
+from os import environ
 from pathlib import Path
 
 PREVIEW_DIR = ".git-assistant-preview"
@@ -39,5 +42,36 @@ def write_readme_preview_files(
     return preview_path, diff_path
 
 
+def read_preview_readme(cwd: Path) -> str:
+    preview_path = get_preview_dir(cwd) / README_PREVIEW_FILE
+    return preview_path.read_text(encoding="utf-8")
+
+
+def cleanup_preview_files(cwd: Path) -> None:
+    preview_dir = get_preview_dir(cwd)
+    if preview_dir.exists():
+        shutil.rmtree(preview_dir)
+
+
 def open_preview_file(path: Path) -> None:
     webbrowser.open(path.resolve().as_uri())
+
+
+def open_preview_in_editor(path: Path) -> None:
+    editor = _resolve_editor()
+    if editor is None:
+        raise RuntimeError("No terminal editor available. Set $EDITOR to enable README editing.")
+
+    subprocess.run([editor, str(path)], check=False)
+
+
+def _resolve_editor() -> str | None:
+    configured = environ.get("EDITOR")
+    if configured:
+        return configured
+
+    for candidate in ("nano", "vim", "vi"):
+        if shutil.which(candidate):
+            return candidate
+
+    return None
