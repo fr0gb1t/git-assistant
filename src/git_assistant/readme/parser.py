@@ -18,63 +18,156 @@ class ReadmeGenerateResult:
     readme: str
 
 
-def _sanitize_json_response(raw: str) -> str:
-    """
-    Clean common LLM JSON output issues before parsing:
-    - Strip markdown code fences (```json ... ```)
-    - Fix unescaped control characters inside JSON string values
-    """
-    # Strip markdown code fences
+def _strip_fences(raw: str) -> str:
+    """Strip markdown code fences that LLMs sometimes add around JSON."""
     raw = raw.strip()
     raw = re.sub(r"^```(?:json)?\s*", "", raw)
     raw = re.sub(r"\s*```$", "", raw)
+    return raw.strip()
+
+
+def _fix_control_chars(raw: str) -> str:
+    """
+    Walk the string character by character.
+    When inside a JSON string value, escape any raw control characters
+    (newlines, tabs, etc.) that the model left unescaped.
+    This handles the most common LLM JSON failure: literal newlines in values.
+    """
+    result = []
+    in_string = False
+    escaped = False
+
+    for ch in raw:
+        if escaped:
+            result.append(ch)
+            escaped = False
+        elif ch == "\\":
+            result.append(ch)
+            escaped = True
+        elif ch == '"':
+            result.append(ch)
+            in_string = not in_string
+        elif in_string:
+            if ch == "\n":
+                result.append("\\n")
+            elif ch == "\r":
+                result.append("\\r")
+            elif ch == "\t":
+                result.append("\\t")
+            elif ord(ch) < 0x20:
+                result.append(f"\\u{ord(ch):04x}")
+            else:
+                result.append(ch)
+        else:
+            result.append(ch)
+
+    return "".join(result)
+
+
+def _extract_large_field(raw: str, field_name: str) -> str | None:
+    """
+    Last-resort extractor for large text fields (updated_readme, readme).
+
+    Strategy: find the field key, locate the opening quote of its value,
+    then take everything up to the last quote in the response — which should
+    be the closing quote of the field value if it is the last field in the JSON.
+
+    This handles the case where the value contains unescaped double quotes
+    that break structural JSON parsing.
+    """
+    key = f'"{field_name}"'
+    key_idx = raw.rfind(key)
+    if key_idx == -1:
+        return None
+
+    after_key = raw[key_idx + len(key):]
+    # Find `: "` — the colon and opening quote of the value
+    m = re.search(r':\s*"', after_key)
+    if not m:
+        return None
+
+    content_start = key_idx + len(key) + m.end()
+    content_tail = raw[content_start:]
+
+    # The value ends at the last `"` in the response
+    # (relies on the readme/updated_readme being the last JSON field)
+    last_quote = content_tail.rfind('"')
+    if last_quote == -1:
+        return None
+
+    value = content_tail[:last_quote]
+
+    # Unescape already-escaped sequences so the caller gets clean text
+    value = value.replace("\\n", "\n")
+    value = value.replace("\\t", "\t")
+    value = value.replace("\\r", "\r")
+    value = value.replace('\\"', '"')
+    value = value.replace("\\\\", "\\")
+
+    return value
+
+
+def _parse_json_robust(raw: str, large_field: str) -> dict:
+    """
+    Parse JSON from an LLM response using a progressive fallback strategy:
+    1. Direct parse (handles well-formed responses — zero overhead).
+    2. Strip markdown fences + direct parse.
+    3. Strip fences + fix control characters + parse.
+    4. Strip fences + fix control chars + extract large field manually.
+    """
     raw = raw.strip()
 
-    # Fix unescaped control characters inside string values.
-    # Strategy: find every JSON string value and re-escape any
-    # raw control characters (tabs, newlines, carriage returns, etc.)
-    # that the model left unescaped.
-    def escape_string_content(m: re.Match) -> str:
-        inner = m.group(1)
-        # Replace raw control characters with their JSON escape sequences
-        inner = inner.replace("\r\n", "\\n")
-        inner = inner.replace("\r", "\\n")
-        inner = inner.replace("\n", "\\n")
-        inner = inner.replace("\t", "\\t")
-        # Remove other control characters (0x00–0x1f except already escaped)
-        inner = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", inner)
-        return f'"{inner}"'
-
-    # Match JSON strings: "..." handling escaped quotes inside
-    raw = re.sub(r'"((?:[^"\\]|\\.)*)"', escape_string_content, raw)
-
-    return raw
-
-
-def _parse_json_robust(raw_response: str) -> dict:
-    """
-    Parse JSON from an LLM response, applying sanitization if the
-    first parse attempt fails.
-    """
-    raw = raw_response.strip()
-
-    # First attempt: direct parse (handles well-formed responses)
+    # 1. Direct parse
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
         pass
 
-    # Second attempt: sanitize then parse
-    sanitized = _sanitize_json_response(raw)
+    # 2. Strip fences
+    cleaned = _strip_fences(raw)
     try:
-        return json.loads(sanitized)
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        pass
+
+    # 3. Fix control characters
+    fixed = _fix_control_chars(cleaned)
+    try:
+        return json.loads(fixed)
+    except json.JSONDecodeError:
+        pass
+
+    # 4. Manual field extraction — handles unescaped quotes inside the value
+    field_value = _extract_large_field(cleaned, large_field)
+    if field_value is None:
+        raise ValueError(f"Could not extract '{large_field}' from response.")
+
+    # Re-parse the JSON with the large field replaced by a safe placeholder,
+    # then inject the extracted value back in.
+    key = f'"{large_field}"'
+    key_idx = cleaned.rfind(key)
+    after_key = cleaned[key_idx + len(key):]
+    m = re.search(r':\s*"', after_key)
+    if not m:
+        raise ValueError(f"Could not reconstruct JSON after extracting '{large_field}'.")
+
+    val_start = key_idx + len(key) + m.end()
+    last_quote = cleaned[val_start:].rfind('"')
+    reconstructed = (
+        cleaned[:val_start]
+        + json.dumps(field_value)[1:-1]  # re-encode as safe JSON string content
+        + cleaned[val_start + last_quote:]
+    )
+
+    try:
+        return json.loads(reconstructed)
     except json.JSONDecodeError as exc:
-        raise ValueError(f"Could not parse JSON after sanitization: {exc}") from exc
+        raise ValueError(f"JSON reconstruction failed: {exc}") from exc
 
 
 def parse_readme_update_response(raw_response: str) -> ReadmeUpdateResult:
     try:
-        data = _parse_json_robust(raw_response)
+        data = _parse_json_robust(raw_response, large_field="updated_readme")
     except ValueError as exc:
         raise ValueError("README updater did not return valid JSON.") from exc
 
@@ -107,7 +200,7 @@ def parse_readme_update_response(raw_response: str) -> ReadmeUpdateResult:
 
 def parse_readme_generate_response(raw_response: str) -> ReadmeGenerateResult:
     try:
-        data = _parse_json_robust(raw_response)
+        data = _parse_json_robust(raw_response, large_field="readme")
     except ValueError as exc:
         raise ValueError("README generator did not return valid JSON.") from exc
 

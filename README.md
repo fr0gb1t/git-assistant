@@ -101,4 +101,4 @@ Version detection priority:
 ## 🛣 Roadmap
 Planned features:
 - 🌐 Additional AI providers
-- 🧠 Smarter release intelligence
+------------------------------------------------------------------------

@@ -1,6 +1,63 @@
 from __future__ import annotations
 
-README_UPDATE_SYSTEM_PROMPT = """
+# Markdown formatting rules distilled from markdownlint, adapted for LLM prompts.
+# MD013 (line length) is intentionally omitted — READMEs with badges and URLs
+# regularly exceed 80 chars and enforcing it adds noise without value.
+# MD033 (inline HTML) is intentionally omitted — badge shields use inline HTML.
+_MARKDOWN_RULES = """
+## Markdown formatting rules
+Apply these rules to ALL markdown output:
+
+### Headers
+- The first line of the document must be a top-level header (# Title). (MD041)
+- Use only one top-level header per document. (MD025)
+- Increment header levels one at a time — never skip from # to ### without ##. (MD001)
+- Use ATX-style headers (# Header), not setext-style (underline). (MD003)
+- One space after the # symbol — never zero, never multiple. (MD018, MD019)
+- No trailing punctuation in headers. (MD026)
+- Surround every header with a blank line above and below. (MD022)
+- Headers must start at the beginning of the line. (MD023)
+- Do not repeat the same header text more than once. (MD024)
+
+### Lists
+- Use `-` for all unordered list items consistently. (MD004)
+- One space after the list marker (`- item`, not `-item`). (MD030)
+- Unordered list items start at the beginning of the line (no leading spaces for top level). (MD006)
+- Indent nested list items by 2 spaces. (MD007)
+- Keep indentation consistent for list items at the same level. (MD005)
+- Surround lists with a blank line above and below. (MD032)
+- For ordered lists, use `1.`, `2.`, `3.` — sequential numbering. (MD029)
+
+### Code blocks
+- Always specify the language on fenced code blocks (```bash, ```python, etc.). (MD040)
+- Use fenced code blocks (``` ``` ```) consistently — not indented code blocks. (MD046)
+- Surround fenced code blocks with a blank line above and below. (MD031)
+- Do not use `$` before shell commands unless the output is also shown. (MD014)
+
+### Spacing and whitespace
+- No trailing spaces at end of lines. (MD009)
+- No hard tabs — use spaces only. (MD010)
+- No more than one consecutive blank line anywhere in the document. (MD012)
+
+### Links and emphasis
+- Use correct link syntax: `[text](url)` — not `(text)[url]`. (MD011)
+- Do not use bare URLs — always wrap them: `[url](url)` or `<url>`. (MD034)
+- No spaces inside emphasis markers (`*text*`, not `* text *`). (MD037)
+- No spaces inside code spans (`` `code` ``, not `` ` code ` ``). (MD038)
+- No spaces inside link text (`[text](url)`, not `[ text ](url)`). (MD039)
+
+### Blockquotes
+- One space after the `>` symbol. (MD027)
+- No blank lines inside a blockquote block. (MD028)
+
+### Horizontal rules
+- Use `---` for horizontal rules consistently. (MD035)
+
+### Document end
+- The file must end with exactly one newline character. (MD047)
+"""
+
+README_UPDATE_SYSTEM_PROMPT = f"""
 You are a technical documentation maintenance assistant.
 
 Your task is to review a project's README.md and decide whether it should be updated based on the provided changelog and repository context.
@@ -20,15 +77,15 @@ The Roadmap section must be kept accurate and up to date. Apply these rules stri
 - KEEP only items that are genuinely pending and not yet implemented.
 - If all items are implemented, remove the Roadmap section entirely or replace it with a note that the planned features are complete.
 - Do NOT keep implemented items in the Roadmap just to preserve existing content.
-
+{_MARKDOWN_RULES}
 Return ONLY valid JSON with this exact schema:
 
-{
+{{
   "should_update": true,
   "reason": "short explanation",
   "updated_sections": ["section 1", "section 2"],
   "updated_readme": "full updated README content"
-}
+}}
 
 Rules:
 - Output JSON only.
@@ -38,15 +95,15 @@ Rules:
 - Preserve headings, layout, emoji style, and overall structure as much as possible.
 - Keep existing sections unless a clear update is needed.
 - If no meaningful README changes are needed, return:
-  {
+  {{
     "should_update": false,
     "reason": "short explanation",
     "updated_sections": [],
     "updated_readme": "<original README content unchanged>"
-  }
+  }}
 """
 
-README_GENERATE_SYSTEM_PROMPT = """
+README_GENERATE_SYSTEM_PROMPT = f"""
 You are a technical documentation assistant specialized in creating initial README files for software projects.
 
 Your task is to generate a complete and well-structured README.md based on the provided repository context: its structure, source code, and changelog.
@@ -67,12 +124,12 @@ Required sections (include all, even if partially filled):
 5. ⚙ Configuration (if applicable)
 6. 🛣 Roadmap (pending features only; omit if nothing is pending)
 7. 📄 License
-
+{_MARKDOWN_RULES}
 Return ONLY valid JSON with this exact schema:
 
-{
+{{
   "readme": "full README.md content in markdown"
-}
+}}
 
 Rules:
 - Output JSON only.
@@ -101,6 +158,7 @@ def build_readme_update_prompt(
         "Preserve the original structure and emojis.\n"
         "Only make documentation updates that are justified by the changelog or codebase.\n"
         "Pay special attention to the Roadmap section: remove any items already implemented.\n"
+        "Apply all markdown formatting rules.\n"
         "Prefer conservative edits over broad rewrites."
     )
 
@@ -127,6 +185,7 @@ def build_readme_generate_prompt(
         "Generate an initial README.md for this project.\n"
         "Base all content strictly on the repository structure, source code, and changelog.\n"
         "Include all required sections. Use placeholders for sections with insufficient context.\n"
+        "Apply all markdown formatting rules.\n"
         "The Roadmap must only list features not yet implemented."
     )
 
