@@ -6,8 +6,12 @@ from pathlib import Path
 from unittest.mock import patch
 
 from git_assistant.readme.parser import ReadmeGenerateResult, ReadmeUpdateResult
-from git_assistant.readme.preview import write_readme_preview_files
-from git_assistant.readme.service import clear_readme_preview, edit_generated_readme, edit_readme_update
+from git_assistant.readme.preview import open_preview_pair, write_readme_preview_files
+from git_assistant.readme.service import (
+    clear_readme_preview,
+    edit_generated_readme,
+    edit_readme_update,
+)
 
 
 class ReadmePreviewTests(unittest.TestCase):
@@ -68,6 +72,20 @@ class ReadmePreviewTests(unittest.TestCase):
                 (cwd / "README.md").read_text(encoding="utf-8"),
                 "# Edited Generated\n",
             )
+
+    def test_open_preview_pair_opens_preview_and_diff(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cwd = Path(tmp_dir)
+            preview_path, diff_path = write_readme_preview_files(
+                cwd,
+                original_readme="# Old\n",
+                updated_readme="# New\n",
+            )
+
+            with patch("git_assistant.readme.preview.webbrowser.open") as mock_open:
+                open_preview_pair(preview_path, diff_path)
+
+            self.assertEqual(mock_open.call_count, 2)
 
 
 if __name__ == "__main__":

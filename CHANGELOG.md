@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- add preview pair functionality for concurrent file viewing
+
 ## [0.6.0] - 2026-03-17
 
 ### Added

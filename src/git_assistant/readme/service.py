@@ -18,9 +18,10 @@ from git_assistant.readme.prompt import (
     build_readme_generate_prompt,
     build_readme_update_prompt,
 )
-from git_assistant.readme.preview import open_preview_file, write_readme_preview_files
+from git_assistant.readme.preview import write_readme_preview_files
 from git_assistant.readme.preview import (
     cleanup_preview_files,
+    open_preview_pair,
     open_preview_in_editor,
     read_preview_readme,
 )
@@ -195,13 +196,13 @@ def apply_generated_readme(cwd: Path, result: ReadmeGenerateResult) -> Path:
 
 def preview_readme_update(cwd: Path, result: ReadmeUpdateResult) -> tuple[Path, Path]:
     preview_path, diff_path = prepare_readme_preview(cwd, result)
-    open_preview_file(preview_path)
+    open_preview_pair(preview_path, diff_path)
     return preview_path, diff_path
 
 
 def preview_generated_readme(cwd: Path, result: ReadmeGenerateResult) -> tuple[Path, Path]:
     preview_path, diff_path = prepare_generated_readme_preview(cwd, result)
-    open_preview_file(preview_path)
+    open_preview_pair(preview_path, diff_path)
     return preview_path, diff_path
 
 

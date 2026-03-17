@@ -57,6 +57,11 @@ def open_preview_file(path: Path) -> None:
     webbrowser.open(path.resolve().as_uri())
 
 
+def open_preview_pair(preview_path: Path, diff_path: Path) -> None:
+    open_preview_file(preview_path)
+    open_preview_file(diff_path)
+
+
 def open_preview_in_editor(path: Path) -> None:
     editor = _resolve_editor()
     if editor is None:

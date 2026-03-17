@@ -15,6 +15,7 @@
 - 🔢 Range selection support (`1-4,7,9`)
 - ⚡ Fast workflow with `--all-files`
 - 🧪 Safe testing with `--dry-run`
+- 👀 Preview pair functionality for concurrent file viewing
 ------------------------------------------------------------------------
 ## ⚡ Quick Usage
 ### Interactive commit workflow
@@ -68,7 +69,6 @@ Includes **all selectable files**.
 ## 📝 CHANGELOG Behavior
 
 `git-assistant` automatically updates `CHANGELOG.md` before creating a commit. Key rules:
-
 - The entry is derived from the generated commit message.
 - `CHANGELOG.md` is **automatically staged**.
 - When using `--dry-run`, the changelog is restored afterward.
