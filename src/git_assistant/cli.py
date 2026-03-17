@@ -426,16 +426,29 @@ def prompt_release_choice(
 
     print("\n⚙ Apply a release?")
 
-    if heuristic.should_release and heuristic.next_version:
+    heuristic_version = heuristic.next_version if heuristic.should_release else None
+    ai_version = ai.next_version if ai and ai.should_release else None
+
+    if (
+        heuristic.should_release
+        and ai is not None
+        and ai.should_release
+        and heuristic.release_type == ai.release_type
+        and heuristic_version is not None
+        and heuristic_version == ai_version
+    ):
+        print(f"[1] Release {heuristic_version}")
+        options["1"] = heuristic_version
+    elif heuristic.should_release and heuristic_version:
         option = str(next_option)
-        print(f"[{option}] Release {heuristic.next_version} (heuristic)")
-        options[option] = heuristic.next_version
+        print(f"[{option}] Release {heuristic_version} (heuristic)")
+        options[option] = heuristic_version
         next_option += 1
 
-    if ai and ai.should_release and ai.next_version:
+    if ai and ai.should_release and ai_version and ai_version not in options.values():
         option = str(next_option)
-        print(f"[{option}] Release {ai.next_version} (AI)")
-        options[option] = ai.next_version
+        print(f"[{option}] Release {ai_version} (AI)")
+        options[option] = ai_version
 
     print("[0] Skip")
 
