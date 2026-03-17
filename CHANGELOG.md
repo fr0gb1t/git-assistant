@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- update prompt and evaluation logic for README updates
+
 ## [0.4.0] - 2026-03-17
 
 ### Added

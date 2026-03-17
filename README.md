@@ -7,7 +7,6 @@
 **AI‑powered Git commit and release workflow assistant.**
 
 `git-assistant` analyzes your Git changes, generates high‑quality commit messages using AI, updates your `CHANGELOG.md` automatically, suggests when a new release may be appropriate, and pushes releases to remote repositories.
-
 It is designed to streamline the **entire commit → changelog → release workflow** while staying fast, safe, and developer-friendly.
 ------------------------------------------------------------------------
 ## ✨ Features
@@ -27,6 +26,8 @@ It is designed to streamline the **entire commit → changelog → release workf
 - 📦 Release workflow execution
   - Pushes releases to remote repositories automatically after successful commits.
 - 🚀 Automatic release creation and pushing to remote repositories
+  - Heuristic evaluation based on changelog structure
+  - Optional AI analysis of the `Unreleased` section in `CHANGELOG.md`
 - 🔄 **Version bump automation**
   - Automatically detects version bumps based on changelog entries.
 ------------------------------------------------------------------------
@@ -101,4 +102,3 @@ Version detection priority:
 ## 🛣 Roadmap
 Planned features:
 - 🌐 Additional AI providers
-------------------------------------------------------------------------

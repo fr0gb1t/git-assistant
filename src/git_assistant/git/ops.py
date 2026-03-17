@@ -99,14 +99,39 @@ def git_add_all(cwd: Path | None = None) -> None:
     """
     run_git_command(["add", "."], cwd=cwd)
 
+def get_ignored_files(file_paths: list[str], cwd: Path | None = None) -> set[str]:
+    """
+    Return the subset of file_paths that are ignored by .gitignore.
+    Uses `git check-ignore` — returns empty set if none are ignored.
+    """
+    if not file_paths:
+        return set()
+
+    try:
+        output = run_git_command(
+            ["check-ignore", "--", *file_paths],
+            cwd=cwd,
+        )
+        return set(output.splitlines())
+    except GitError:
+        # git check-ignore exits with code 1 when no files are ignored — not a real error
+        return set()
+
+
 def git_add_files(file_paths: list[str], cwd: Path | None = None) -> None:
     """
-    Stage only the provided files.
+    Stage only the provided files, silently skipping any that are gitignored.
     """
     if not file_paths:
         raise GitError("No files were provided to git_add_files().")
 
-    run_git_command(["add", "--", *file_paths], cwd=cwd)
+    ignored = get_ignored_files(file_paths, cwd=cwd)
+    stageable = [f for f in file_paths if f not in ignored]
+
+    if not stageable:
+        raise GitError("All provided files are ignored by .gitignore — nothing to stage.")
+
+    run_git_command(["add", "--", *stageable], cwd=cwd)
 
 
 def git_commit(message: str, cwd: Path | None = None) -> str:

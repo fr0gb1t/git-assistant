@@ -69,14 +69,21 @@ Do NOT change the overall formatting style unless needed for consistency.
 
 Your goal is to make the minimum necessary documentation updates so the README stays aligned with the project.
 
+## Context usage
+You will receive two changelog inputs — use them for different purposes:
+- **Recent changes** (`[Unreleased]` section only): use this to decide whether the README needs updates based on what changed in the latest commit.
+- **Full CHANGELOG**: use this ONLY to evaluate the Roadmap section.
+
 ## Roadmap section rules (IMPORTANT)
 The Roadmap section must be kept accurate and up to date. Apply these rules strictly:
-- Cross-reference every Roadmap item against the full CHANGELOG.md history and the repository structure.
-- REMOVE any item that is clearly already implemented (present in the changelog as Added/Changed or visible in the codebase).
-- REMOVE any item that was explicitly discarded or decided out of scope (if evident from the changelog or commit messages).
-- KEEP only items that are genuinely pending and not yet implemented.
-- If all items are implemented, remove the Roadmap section entirely or replace it with a note that the planned features are complete.
-- Do NOT keep implemented items in the Roadmap just to preserve existing content.
+- Cross-reference every Roadmap item against the full CHANGELOG history and the repository structure.
+- REMOVE an item ONLY if it is explicitly and clearly described as implemented in the full changelog (appears under Added or Changed in a released version).
+- REMOVE an item if it was explicitly discarded or decided out of scope (evident from commit messages).
+- KEEP items if there is any doubt — only remove what is unambiguously done.
+- KEEP items that are genuinely pending and not yet implemented.
+- If all items are implemented, remove the Roadmap section entirely.
+- Do NOT remove items based on partial evidence or indirect inference.
+- Make Roadmap changes at most ONCE per run — do not re-evaluate items already removed in previous runs.
 {_MARKDOWN_RULES}
 Return ONLY valid JSON with this exact schema:
 
@@ -141,7 +148,8 @@ Rules:
 
 def build_readme_update_prompt(
     readme_text: str,
-    changelog_text: str,
+    unreleased_text: str,
+    full_changelog_text: str,
     repo_tree: str | None = None,
 ) -> str:
     parts: list[str] = []
@@ -150,16 +158,21 @@ def build_readme_update_prompt(
         parts.append(f"Repository structure:\n{repo_tree}")
 
     parts.append(f"Current README.md:\n{readme_text}")
-    parts.append(f"CHANGELOG.md:\n{changelog_text}")
+
+    parts.append(
+        f"Recent changes ([Unreleased] section — use this to decide if README needs updates):\n"
+        f"{unreleased_text if unreleased_text.strip() else 'No unreleased changes.'}"
+    )
+
+    parts.append(f"Full CHANGELOG (use ONLY for Roadmap evaluation):\n{full_changelog_text}")
 
     parts.append(
         "Task:\n"
-        "Review whether README.md needs updates based on the changelog and repository structure.\n"
-        "Preserve the original structure and emojis.\n"
-        "Only make documentation updates that are justified by the changelog or codebase.\n"
-        "Pay special attention to the Roadmap section: remove any items already implemented.\n"
-        "Apply all markdown formatting rules.\n"
-        "Prefer conservative edits over broad rewrites."
+        "1. Review the [Unreleased] section to decide if the README needs updates based on recent changes.\n"
+        "2. Use the full CHANGELOG only to evaluate the Roadmap section.\n"
+        "3. Preserve the original structure and emojis.\n"
+        "4. Apply all markdown formatting rules.\n"
+        "5. Prefer conservative edits over broad rewrites."
     )
 
     return "\n\n".join(parts)

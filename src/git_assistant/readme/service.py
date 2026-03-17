@@ -5,6 +5,7 @@ from pathlib import Path
 from git_assistant.ai.base import AIConfig, AIProviderError, debug_print
 from git_assistant.ai.factory import get_ai_provider
 from git_assistant.context.repo_context import build_repo_tree
+from git_assistant.release.evaluator import extract_unreleased_block
 from git_assistant.readme.parser import (
     ReadmeGenerateResult,
     ReadmeUpdateResult,
@@ -82,11 +83,13 @@ def evaluate_readme_update(cwd: Path, ai_config: AIConfig) -> ReadmeUpdateResult
 
     readme_text = readme_path.read_text(encoding="utf-8")
     changelog_text = changelog_path.read_text(encoding="utf-8")
+    unreleased_text = extract_unreleased_block(changelog_text)
     repo_tree = build_repo_tree(cwd)
 
     prompt = build_readme_update_prompt(
         readme_text=readme_text,
-        changelog_text=changelog_text,
+        unreleased_text=unreleased_text,
+        full_changelog_text=changelog_text,
         repo_tree=repo_tree,
     )
 

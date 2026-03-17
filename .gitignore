@@ -4,6 +4,9 @@ __pycache__/
 *$py.class
 *.pyc
 git_assistant.egg-info/
+.git-assistant-preview/
+README.diff
+README.preview.md
 
 # C extensions
 *.so
