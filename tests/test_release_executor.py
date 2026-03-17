@@ -7,11 +7,20 @@ from pathlib import Path
 from git_assistant.release.executor import (
     PACKAGE_INIT_FILE,
     PYPROJECT_FILE,
+    normalize_release_version,
     sync_project_version_files,
 )
 
 
 class ReleaseExecutorVersionSyncTests(unittest.TestCase):
+    def test_normalize_release_version_accepts_plain_and_prefixed_versions(self) -> None:
+        self.assertEqual(normalize_release_version("0.5.0"), "0.5.0")
+        self.assertEqual(normalize_release_version("v0.5.0"), "0.5.0")
+
+    def test_normalize_release_version_rejects_invalid_values(self) -> None:
+        with self.assertRaises(ValueError):
+            normalize_release_version("release-0.5.0")
+
     def test_sync_project_version_files_updates_pyproject_and_package_version(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             cwd = Path(tmp_dir)

@@ -18,6 +18,7 @@ RELEASE_MANAGED_FILES = [
 
 PYPROJECT_VERSION_RE = re.compile(r'(?m)^(version = )"[^"]+"$')
 PACKAGE_VERSION_RE = re.compile(r'(?m)^__version__ = "[^"]+"$')
+SEMVER_RE = re.compile(r"^v?(\d+\.\d+\.\d+)$")
 
 
 @dataclass(slots=True)
@@ -27,18 +28,31 @@ class PreparedRelease:
     release_date: str
 
 
+def normalize_release_version(version: str) -> str:
+    """
+    Accept `0.1.0` and `v0.1.0`, returning the normalized plain version.
+    """
+    match = SEMVER_RE.fullmatch(version.strip())
+    if match is None:
+        raise ValueError(
+            "Invalid release version. Use semantic version format like 0.7.2 or v0.7.2."
+        )
+    return match.group(1)
+
+
 def prepare_release_changelog(cwd: Path, version: str) -> PreparedRelease:
     """
     Convert [Unreleased] into a released changelog section and sync project
     version files before commit.
     """
+    normalized_version = normalize_release_version(version)
     release_date = date.today().isoformat()
-    sync_project_version_files(cwd, version=version)
-    finalize_unreleased_release(cwd, version=version, release_date=release_date)
+    sync_project_version_files(cwd, version=normalized_version)
+    finalize_unreleased_release(cwd, version=normalized_version, release_date=release_date)
 
     return PreparedRelease(
-        version=version,
-        tag=f"v{version}",
+        version=normalized_version,
+        tag=f"v{normalized_version}",
         release_date=release_date,
     )
 
@@ -47,7 +61,8 @@ def create_release_tag(cwd: Path, version: str) -> str:
     """
     Create a Git tag for the released version after a successful commit.
     """
-    tag = f"v{version}"
+    normalized_version = normalize_release_version(version)
+    tag = f"v{normalized_version}"
     create_git_tag(tag, cwd=cwd)
     return tag
 
@@ -56,8 +71,9 @@ def sync_project_version_files(cwd: Path, version: str) -> None:
     """
     Update version declarations that should match the released Git tag.
     """
-    _update_pyproject_version(cwd / PYPROJECT_FILE, version)
-    _update_package_init_version(cwd / PACKAGE_INIT_FILE, version)
+    normalized_version = normalize_release_version(version)
+    _update_pyproject_version(cwd / PYPROJECT_FILE, normalized_version)
+    _update_package_init_version(cwd / PACKAGE_INIT_FILE, normalized_version)
 
 
 def _update_pyproject_version(pyproject_path: Path, version: str) -> None:

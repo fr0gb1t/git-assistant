@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- add manual release option for specifying version directly
+
 ## [0.7.2] - 2026-03-17
 
 ### Added

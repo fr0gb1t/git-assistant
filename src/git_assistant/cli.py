@@ -50,6 +50,7 @@ from git_assistant.release.evaluator import evaluate_release
 from git_assistant.release.executor import (
     RELEASE_MANAGED_FILES,
     create_release_tag,
+    normalize_release_version,
     prepare_release_changelog,
 )
 
@@ -106,6 +107,12 @@ def parse_args() -> argparse.Namespace:
         "--all-files",
         action="store_true",
         help="Include all changed files without prompting for selection",
+    )
+
+    parser.add_argument(
+        "--release",
+        default=None,
+        help="Apply a release directly using a version like 0.7.2 or v0.7.2",
     )
 
     return parser.parse_args()
@@ -532,21 +539,23 @@ def apply_release(
     committing the changelog, creating a tag, and pushing both
     the release commit and tag to origin.
     """
+    normalized_version = normalize_release_version(version)
+
     try:
-        prepare_release_changelog(cwd, version=version)
-    except OSError as exc:
+        prepare_release_changelog(cwd, version=normalized_version)
+    except (OSError, ValueError) as exc:
         print(f"Warning: failed to prepare release changelog: {exc}", file=sys.stderr)
         return
 
     try:
         git_add_files(RELEASE_MANAGED_FILES, cwd)
-        git_commit(f"chore(release): publish v{version}", cwd)
+        git_commit(f"chore(release): publish v{normalized_version}", cwd)
     except GitError as exc:
         print(f"Git error while creating release commit: {exc}", file=sys.stderr)
         return
 
     try:
-        created_tag = create_release_tag(cwd, version)
+        created_tag = create_release_tag(cwd, normalized_version)
         print(f"🏷 Created tag: {created_tag}")
     except GitError as exc:
         print(f"Warning: release tag could not be created: {exc}", file=sys.stderr)
@@ -712,6 +721,20 @@ def main() -> None:
     if not is_git_repo(cwd):
         print("Error: not inside a Git repository.", file=sys.stderr)
         sys.exit(1)
+
+    manual_release = getattr(args, "release", None)
+
+    if manual_release:
+        try:
+            version = normalize_release_version(manual_release)
+        except ValueError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(1)
+
+        print(f"📦 Repository: {get_repo_root(cwd)}")
+        print(f"🚀 Applying manual release: {version}")
+        apply_release(cwd, version)
+        sys.exit(0)
 
     try:
         repo_root = get_repo_root(cwd)

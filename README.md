@@ -34,6 +34,14 @@ git-assistant --dry-run
 ``` bash
 git-assistant --debug
 ```
+#### Manual release option for specifying version directly
+``` bash
+git-assistant --release 1.0.0
+```
+or
+``` bash
+git-assistant --release v1.0.0
+```
 ------------------------------------------------------------------------
 ## 📦 Installation
 Clone the repository and install in editable mode:
