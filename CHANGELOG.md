@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-03-17
+
 ### Added
 - add first stable release hint in CLI
 - add AI-generated first stable hint reason generation
