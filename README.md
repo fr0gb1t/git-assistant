@@ -48,6 +48,7 @@ or
 ``` bash
 git-assistant --release v1.0.0
 ```
+
 ------------------------------------------------------------------------
 ## 📦 Installation
 Clone the repository and install in editable mode:
@@ -70,7 +71,7 @@ You can select files using:
 Ranges:
     1-4
 ```
-Or combinations:
+or combinations:
 ```text
     1-4,7,9
 ```

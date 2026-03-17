@@ -497,6 +497,7 @@ def _handle_readme_generation(cwd: Path, ai_config: AIConfig, *, dry_run: bool =
 def prompt_release_choice(
     heuristic,
     ai,
+    first_stable_hint=None,
 ) -> str | None:
     options: dict[str, str] = {}
     next_option = 1
@@ -516,6 +517,7 @@ def prompt_release_choice(
     ):
         print(f"[1] Release {heuristic_version}")
         options["1"] = heuristic_version
+        next_option += 1
     elif heuristic.should_release and heuristic_version:
         option = str(next_option)
         print(f"[{option}] Release {heuristic_version} (heuristic)")
@@ -526,6 +528,17 @@ def prompt_release_choice(
         option = str(next_option)
         print(f"[{option}] Release {ai_version} (AI)")
         options[option] = ai_version
+        next_option += 1
+
+    if (
+        first_stable_hint is not None
+        and first_stable_hint.should_suggest
+        and first_stable_hint.version
+        and first_stable_hint.version not in options.values()
+    ):
+        option = str(next_option)
+        print(f"[{option}] Release {first_stable_hint.version} (first stable)")
+        options[option] = first_stable_hint.version
 
     print("[0] Skip")
 
@@ -920,6 +933,7 @@ def main() -> None:
     release_version = prompt_release_choice(
         heuristic_suggestion,
         ai_suggestion,
+        first_stable_hint,
     )
 
     if release_version is not None:
