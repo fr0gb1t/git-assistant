@@ -12,6 +12,7 @@
 ## ✨ Features
 - 🤖 **AI commit message generation**
   - Readline support for interactive editing
+  - AI-generated first stable release hint in CLI
 - 🔢 Range selection support (`1-4,7,9`)
 - ⚡ Fast workflow with `--all-files`
 - 🧪 Safe testing with `--dry-run`

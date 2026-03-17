@@ -4,6 +4,7 @@
 
 ### Added
 - add first stable release hint in CLI
+- add AI-generated first stable hint reason generation
 
 ## [0.7.3] - 2026-03-17
 

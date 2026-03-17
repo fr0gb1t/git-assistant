@@ -67,6 +67,9 @@ class StableReleaseHint:
     should_suggest: bool
     version: str | None
     reason: str
+    current_version: str | None = None
+    released_versions: int = 0
+    released_entries: int = 0
 
 
 def extract_unreleased_block(changelog_text: str) -> str:
@@ -241,6 +244,7 @@ def evaluate_first_stable_hint(cwd: Path, changelog_path: Path) -> StableRelease
             should_suggest=False,
             version=None,
             reason="Project is already on a stable major version.",
+            current_version=str(current_version),
         )
 
     if current_version.minor < FIRST_STABLE_MIN_MINOR:
@@ -251,6 +255,7 @@ def evaluate_first_stable_hint(cwd: Path, changelog_path: Path) -> StableRelease
                 f"Current version is below 0.{FIRST_STABLE_MIN_MINOR}.0, "
                 "so a first stable release hint would be premature."
             ),
+            current_version=str(current_version),
         )
 
     released_versions, released_entries = count_released_history(changelog_text)
@@ -260,6 +265,9 @@ def evaluate_first_stable_hint(cwd: Path, changelog_path: Path) -> StableRelease
             should_suggest=False,
             version=None,
             reason="Release history is still too short for a first stable release hint.",
+            current_version=str(current_version),
+            released_versions=released_versions,
+            released_entries=released_entries,
         )
 
     if released_entries < FIRST_STABLE_MIN_ENTRIES:
@@ -267,6 +275,9 @@ def evaluate_first_stable_hint(cwd: Path, changelog_path: Path) -> StableRelease
             should_suggest=False,
             version=None,
             reason="Changelog history is still too small for a first stable release hint.",
+            current_version=str(current_version),
+            released_versions=released_versions,
+            released_entries=released_entries,
         )
 
     return StableReleaseHint(
@@ -276,6 +287,9 @@ def evaluate_first_stable_hint(cwd: Path, changelog_path: Path) -> StableRelease
             "Project is still on 0.x, but accumulated release history suggests it may be "
             "ready for a first stable 1.0.0 release."
         ),
+        current_version=str(current_version),
+        released_versions=released_versions,
+        released_entries=released_entries,
     )
 
 

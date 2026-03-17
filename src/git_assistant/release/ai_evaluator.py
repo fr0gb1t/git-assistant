@@ -7,7 +7,11 @@ from pathlib import Path
 
 from git_assistant.ai.base import AIConfig, debug_print
 from git_assistant.ai.factory import get_ai_provider
-from git_assistant.release.evaluator import extract_unreleased_block, get_current_version
+from git_assistant.release.evaluator import (
+    StableReleaseHint,
+    extract_unreleased_block,
+    get_current_version,
+)
 from git_assistant.release.versioning import bump_version
 
 
@@ -84,6 +88,21 @@ Important rules:
 - Internal repository automation is usually PATCH.
 
 Output JSON only.
+"""
+
+FIRST_STABLE_HINT_SYSTEM_PROMPT = """
+You are writing a concise release-management hint for a CLI tool.
+
+The tool has already decided, via deterministic heuristics, that a project may
+be mature enough to consider its first stable 1.0.0 release.
+
+Your task:
+- Write a clear, non-pushy explanation for a human maintainer.
+- Explain why 1.0.0 may now make sense.
+- Mention that this is a human/product decision, not an automatic breaking-change signal.
+- Keep it to 2 short sentences.
+- Plain text only.
+- Do not use bullets, markdown, or quotes.
 """
 
 INTERNAL_CHANGE_KEYWORDS = {
@@ -205,6 +224,20 @@ Unreleased changelog section:
 """
 
 
+def build_first_stable_hint_prompt(hint: StableReleaseHint) -> str:
+    return f"""
+Current version: {hint.current_version}
+Suggested stable version: {hint.version}
+Zero.x releases found in changelog history: {hint.released_versions}
+Released changelog entries found in zero.x history: {hint.released_entries}
+
+Heuristic basis:
+{hint.reason}
+
+Write a short hint that helps the maintainer decide whether to publish 1.0.0 now.
+"""
+
+
 def format_entries_for_prompt(entries: list[str]) -> str:
     if not entries:
         return "- none"
@@ -321,3 +354,37 @@ def evaluate_release_with_ai(
 
     suggestion = parse_ai_release_response(raw_response, current_version)
     return apply_ai_release_guardrails(suggestion, current_version, unreleased_block)
+
+
+def generate_first_stable_hint_reason(
+    hint: StableReleaseHint,
+    ai_config: AIConfig,
+) -> str:
+    if not hint.should_suggest:
+        return hint.reason
+
+    prompt = build_first_stable_hint_prompt(hint)
+    short_config = AIConfig(
+        provider=ai_config.provider,
+        model=ai_config.model,
+        host=ai_config.host,
+        timeout=min(ai_config.timeout, 20),
+        debug=ai_config.debug,
+    )
+
+    debug_print(
+        short_config,
+        f"first_stable_hint_prompt_size={len(FIRST_STABLE_HINT_SYSTEM_PROMPT) + len(prompt)}",
+    )
+
+    provider = get_ai_provider(short_config)
+    raw_response = provider.generate(
+        system_prompt=FIRST_STABLE_HINT_SYSTEM_PROMPT,
+        user_prompt=prompt,
+    )
+
+    reason = " ".join(line.strip() for line in raw_response.splitlines() if line.strip())
+    if not reason:
+        raise ValueError("AI returned an empty first stable hint reason.")
+
+    return reason.strip().strip('"').strip("'")

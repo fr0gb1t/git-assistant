@@ -44,7 +44,10 @@ from git_assistant.readme.service import (
     preview_generated_readme,
     preview_readme_update,
 )
-from git_assistant.release.ai_evaluator import evaluate_release_with_ai
+from git_assistant.release.ai_evaluator import (
+    evaluate_release_with_ai,
+    generate_first_stable_hint_reason,
+)
 from git_assistant.release.decision import decide_auto_release
 from git_assistant.release.evaluator import evaluate_first_stable_hint, evaluate_release
 from git_assistant.release.executor import (
@@ -723,6 +726,19 @@ def print_first_stable_release_hint(hint) -> None:
     print(f"- consider: git-assistant --release {hint.version}")
 
 
+def enrich_first_stable_hint_reason(hint, ai_config: AIConfig):
+    if not hint.should_suggest:
+        return hint
+
+    try:
+        hint.reason = generate_first_stable_hint_reason(hint, ai_config)
+    except (AIProviderError, ValueError) as exc:
+        if ai_config.debug:
+            print(f"\n[DEBUG] First stable hint generation failed: {exc}")
+
+    return hint
+
+
 def main() -> None:
     args = parse_args()
     cwd = Path.cwd()
@@ -820,6 +836,7 @@ def main() -> None:
             ai_config,
         )
         first_stable_hint = evaluate_first_stable_hint(cwd, get_changelog_path(cwd))
+        first_stable_hint = enrich_first_stable_hint_reason(first_stable_hint, ai_config)
 
         files_to_stage = list(selected_files)
 
