@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-03-17
+
 ### Added
 - automate version number synchronization across pyproject.toml and package init file
 - add options to edit and clear README preview
