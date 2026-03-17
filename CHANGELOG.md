@@ -7,6 +7,7 @@
 - add AI-generated first stable hint reason generation
 - add first stable release option in prompt_release_choice
 - add upstream sync and push prompts
+- update project description to reflect broader functionality
 
 ## [0.7.3] - 2026-03-17
 

@@ -63,6 +63,7 @@ Run the tool:
 ``` bash
 git-assistant
 ```
+
 ------------------------------------------------------------------------
 ## 📂 File Selection
 You can select files using:
@@ -82,6 +83,7 @@ Special option:
     0
 ```
 Includes **all selectable files**.
+
 ------------------------------------------------------------------------
 ## 📝 CHANGELOG Behavior
 
@@ -90,6 +92,7 @@ Includes **all selectable files**.
 - `CHANGELOG.md` is **automatically staged**.
 - When using `--dry-run`, the changelog is restored afterward.
 - Synchronizes version numbers across `pyproject.toml` and package init file.
+
 ------------------------------------------------------------------------
 ## 🚀 Release Suggestions
 After each successful commit, the tool analyzes `CHANGELOG.md` and suggests whether a release should occur. The tool also supports pushing releases to remote repositories automatically. Two mechanisms are used:
@@ -104,6 +107,7 @@ Version detection priority:
 - 1️⃣ Latest Git tag
 - 2️⃣ Latest version in `CHANGELOG.md`
 - 3️⃣ Fallback version
+
 ------------------------------------------------------------------------
 ## 🛣️ Roadmap
 Planned features:
