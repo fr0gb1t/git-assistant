@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-03-17
+
 ### Changed
 - conditional print for selected files display
 
