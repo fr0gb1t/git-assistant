@@ -35,7 +35,9 @@ from git_assistant.readme.service import (
     apply_generated_readme,
     apply_readme_update,
     clear_readme_preview,
+    edit_generated_readme_proposal,
     edit_generated_readme,
+    edit_readme_update_proposal,
     edit_readme_update,
     evaluate_readme_update,
     generate_initial_readme,
@@ -123,6 +125,27 @@ def restore_managed_files(cwd: Path) -> None:
 
         if abs_path.exists():
             abs_path.unlink()
+
+
+def restore_workflow_state(cwd: Path) -> None:
+    """
+    Restore workflow-managed files and remove temporary preview artifacts.
+    """
+    restore_managed_files(cwd)
+    clear_readme_preview(cwd)
+
+
+def restore_dry_run_state(cwd: Path) -> None:
+    """
+    Best-effort cleanup for dry runs so the repository ends in its initial state.
+    """
+    try:
+        restore_workflow_state(cwd)
+    except (GitError, OSError) as exc:
+        print(
+            f"Warning: dry-run cleanup could not fully restore the workspace: {exc}",
+            file=sys.stderr,
+        )
 
 
 def _path_exists_in_head(cwd: Path, file_path: str) -> bool:
@@ -344,12 +367,12 @@ def prompt_readme_generate_action() -> str:
     return input("> ").strip()
 
 
-def maybe_handle_readme_update(cwd: Path, ai_config: AIConfig) -> bool:
+def maybe_handle_readme_update(cwd: Path, ai_config: AIConfig, *, dry_run: bool = False) -> bool:
     clear_readme_preview(cwd)
     readme_path = cwd / README_FILE
 
     if not readme_path.exists():
-        return _handle_readme_generation(cwd, ai_config)
+        return _handle_readme_generation(cwd, ai_config, dry_run=dry_run)
 
     try:
         result = evaluate_readme_update(cwd, ai_config)
@@ -373,6 +396,10 @@ def maybe_handle_readme_update(cwd: Path, ai_config: AIConfig) -> bool:
         action = prompt_readme_update_action()
 
         if action == "1":
+            if dry_run:
+                clear_readme_preview(cwd)
+                print("🧪 README.md update would be applied (dry run).")
+                return True
             apply_readme_update(cwd, result)
             clear_readme_preview(cwd)
             print("📝 README.md updated.")
@@ -386,11 +413,17 @@ def maybe_handle_readme_update(cwd: Path, ai_config: AIConfig) -> bool:
 
         if action == "3":
             try:
-                edit_readme_update(cwd, result)
+                if dry_run:
+                    edit_readme_update_proposal(cwd, result)
+                else:
+                    edit_readme_update(cwd, result)
             except RuntimeError as exc:
                 print(f"Warning: {exc}", file=sys.stderr)
                 continue
             clear_readme_preview(cwd)
+            if dry_run:
+                print("🧪 Edited README proposal kept only for dry run.")
+                return True
             print("📝 README.md updated from edited proposal.")
             return True
 
@@ -401,7 +434,7 @@ def maybe_handle_readme_update(cwd: Path, ai_config: AIConfig) -> bool:
         print("Invalid option.")
 
 
-def _handle_readme_generation(cwd: Path, ai_config: AIConfig) -> bool:
+def _handle_readme_generation(cwd: Path, ai_config: AIConfig, *, dry_run: bool = False) -> bool:
     clear_readme_preview(cwd)
     while True:
         action = prompt_readme_generate_action()
@@ -426,12 +459,23 @@ def _handle_readme_generation(cwd: Path, ai_config: AIConfig) -> bool:
 
             if action == "3":
                 try:
-                    edit_generated_readme(cwd, result)
+                    if dry_run:
+                        edit_generated_readme_proposal(cwd, result)
+                    else:
+                        edit_generated_readme(cwd, result)
                 except RuntimeError as exc:
                     print(f"Warning: {exc}", file=sys.stderr)
                     continue
                 clear_readme_preview(cwd)
+                if dry_run:
+                    print("🧪 Edited README proposal kept only for dry run.")
+                    return True
                 print("📝 README.md generated from edited proposal.")
+                return True
+
+            if dry_run:
+                clear_readme_preview(cwd)
+                print("🧪 README.md would be generated (dry run).")
                 return True
 
             apply_generated_readme(cwd, result)
@@ -737,7 +781,7 @@ def main() -> None:
     try:
         update_changelog(cwd, final_message)
 
-        readme_applied = maybe_handle_readme_update(cwd, ai_config)
+        readme_applied = maybe_handle_readme_update(cwd, ai_config, dry_run=args.dry_run)
 
         heuristic_suggestion, ai_suggestion, release_decision = evaluate_release_suggestions(
             cwd,
@@ -749,7 +793,9 @@ def main() -> None:
         if CHANGELOG_FILE not in files_to_stage and (cwd / CHANGELOG_FILE).exists():
             files_to_stage.append(CHANGELOG_FILE)
 
-        if readme_applied and "README.md" not in files_to_stage and (cwd / "README.md").exists():
+        if readme_applied and "README.md" not in files_to_stage and (
+            args.dry_run or (cwd / "README.md").exists()
+        ):
             files_to_stage.append("README.md")
 
         if args.dry_run:
@@ -776,7 +822,6 @@ def main() -> None:
                 debug=ai_config.debug,
             )
 
-            restore_managed_files(cwd)
             sys.exit(0)
 
         try:
@@ -789,9 +834,15 @@ def main() -> None:
     except (SystemExit, KeyboardInterrupt):
         raise
     except Exception as exc:
-        restore_managed_files(cwd)
+        if args.dry_run:
+            restore_dry_run_state(cwd)
+        else:
+            restore_workflow_state(cwd)
         print(f"\n❌ Unexpected error: {exc}", file=sys.stderr)
         sys.exit(1)
+    finally:
+        if args.dry_run:
+            restore_dry_run_state(cwd)
 
     print("\n✅ Commit created successfully.\n")
     print(commit_output)

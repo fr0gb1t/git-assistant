@@ -5,7 +5,13 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from git_assistant.cli import CHANGELOG_FILE, README_FILE, restore_managed_files
+from git_assistant.cli import (
+    CHANGELOG_FILE,
+    README_FILE,
+    restore_dry_run_state,
+    restore_managed_files,
+    restore_workflow_state,
+)
 from git_assistant.git.ops import GitError
 
 
@@ -48,6 +54,29 @@ class RestoreManagedFilesTests(unittest.TestCase):
                 restore_managed_files(cwd)
 
             self.assertFalse(changelog_path.exists())
+
+    def test_restore_workflow_state_clears_preview_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cwd = Path(tmp_dir)
+            preview_dir = cwd / ".git-assistant-preview"
+            preview_dir.mkdir()
+            (preview_dir / "README.preview.md").write_text("# Preview\n", encoding="utf-8")
+
+            with patch("git_assistant.cli.restore_managed_files") as mock_restore:
+                restore_workflow_state(cwd)
+
+            mock_restore.assert_called_once_with(cwd)
+            self.assertFalse(preview_dir.exists())
+
+    def test_restore_dry_run_state_swallow_restore_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cwd = Path(tmp_dir)
+
+            with patch(
+                "git_assistant.cli.restore_workflow_state",
+                side_effect=GitError("checkout failed"),
+            ):
+                restore_dry_run_state(cwd)
 
 
 if __name__ == "__main__":

@@ -222,18 +222,26 @@ def preview_generated_readme(cwd: Path, result: ReadmeGenerateResult) -> tuple[P
 
 
 def edit_readme_update(cwd: Path, result: ReadmeUpdateResult) -> Path:
-    preview_path, _ = prepare_readme_preview(cwd, result)
-    open_preview_in_editor(preview_path)
-    edited_readme = read_preview_readme(cwd)
+    edited_readme = edit_readme_update_proposal(cwd, result)
     return write_updated_readme(cwd, edited_readme)
 
 
 def edit_generated_readme(cwd: Path, result: ReadmeGenerateResult) -> Path:
-    preview_path, _ = prepare_generated_readme_preview(cwd, result)
-    open_preview_in_editor(preview_path)
-    edited_readme = read_preview_readme(cwd)
+    edited_readme = edit_generated_readme_proposal(cwd, result)
     return write_updated_readme(cwd, edited_readme)
 
 
 def clear_readme_preview(cwd: Path) -> None:
     cleanup_preview_files(cwd)
+
+
+def edit_readme_update_proposal(cwd: Path, result: ReadmeUpdateResult) -> str:
+    preview_path, _ = prepare_readme_preview(cwd, result)
+    open_preview_in_editor(preview_path)
+    return read_preview_readme(cwd)
+
+
+def edit_generated_readme_proposal(cwd: Path, result: ReadmeGenerateResult) -> str:
+    preview_path, _ = prepare_generated_readme_preview(cwd, result)
+    open_preview_in_editor(preview_path)
+    return read_preview_readme(cwd)

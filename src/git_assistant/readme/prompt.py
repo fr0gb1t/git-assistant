@@ -69,6 +69,27 @@ Do NOT change the overall formatting style unless needed for consistency.
 
 Your goal is to make the minimum necessary documentation updates so the README stays aligned with the project.
 
+## When README changes are justified
+Update the README only for user-facing changes such as:
+- new features users can directly use
+- installation or setup changes
+- usage or workflow changes visible to users
+- configuration changes users must know about
+- new commands, flags, modes, or integrations
+
+Do NOT update the README for:
+- internal refactors
+- release automation
+- version synchronization
+- changelog maintenance
+- tests
+- internal tooling improvements
+- code cleanup
+- implementation details with no user-visible impact
+
+If a change belongs in the changelog but does not change how a user installs,
+configures, or uses the project, prefer leaving the README unchanged.
+
 ## Context usage
 You will receive two changelog inputs — use them for different purposes:
 - **Recent changes** (`[Unreleased]` section only): use this to decide whether the README needs updates based on what changed in the latest commit.
@@ -172,7 +193,8 @@ def build_readme_update_prompt(
         "2. Use the full CHANGELOG only to evaluate the Roadmap section.\n"
         "3. Preserve the original structure and emojis.\n"
         "4. Apply all markdown formatting rules.\n"
-        "5. Prefer conservative edits over broad rewrites."
+        "5. Prefer conservative edits over broad rewrites.\n"
+        "6. Ignore internal-only changes unless they affect user-facing installation, configuration, or usage."
     )
 
     return "\n\n".join(parts)
