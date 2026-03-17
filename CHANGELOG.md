@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-03-17
+
 ### Changed
 - unify heuristic and AI release prompts when consensus
 
