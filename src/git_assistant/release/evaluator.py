@@ -1,14 +1,53 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 import re
+from pathlib import Path
 
-from git_assistant.release.versioning import bump_version
 from git_assistant.git.tags import get_latest_git_tag
+from git_assistant.release.versioning import bump_version
 
 UNRELEASED_HEADER = "## [Unreleased]"
 VERSION_HEADER_RE = re.compile(r"^## \[(\d+\.\d+\.\d+)\]", re.MULTILINE)
+INTERNAL_CHANGE_KEYWORDS = {
+    "release",
+    "version",
+    "sync",
+    "synchronization",
+    "metadata",
+    "pyproject",
+    "package init",
+    "__version__",
+    "changelog",
+    "test",
+    "tests",
+    "internal",
+    "tooling",
+    "automation",
+    "repo",
+    "repository",
+}
+USER_FACING_KEYWORDS = {
+    "cli",
+    "command",
+    "flag",
+    "option",
+    "interactive",
+    "mode",
+    "support",
+    "provider",
+    "integration",
+    "generate",
+    "preview",
+    "readme",
+}
+MAJOR_CHANGE_KEYWORDS = {
+    "breaking",
+    "incompatible",
+    "removed",
+    "remove",
+    "migration",
+}
 
 
 @dataclass(slots=True)
@@ -93,6 +132,53 @@ def count_section_entries(unreleased_block: str, section_name: str) -> int:
     return count
 
 
+def extract_section_entries(unreleased_block: str) -> dict[str, list[str]]:
+    """
+    Parse bullet entries from the changelog by section name.
+    """
+    entries: dict[str, list[str]] = {}
+    current_section: str | None = None
+
+    for raw_line in unreleased_block.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        if line.startswith("### "):
+            current_section = line[4:].strip()
+            entries.setdefault(current_section, [])
+            continue
+
+        if line.startswith("- ") and current_section is not None:
+            entries[current_section].append(line[2:].strip())
+
+    return entries
+
+
+def _normalize_entry(entry: str) -> str:
+    return re.sub(r"[^a-z0-9_./ -]+", " ", entry.lower())
+
+
+def looks_like_internal_tooling_change(entry: str) -> bool:
+    normalized = _normalize_entry(entry)
+    return any(keyword in normalized for keyword in INTERNAL_CHANGE_KEYWORDS)
+
+
+def looks_like_user_facing_change(entry: str) -> bool:
+    normalized = _normalize_entry(entry)
+    has_user_facing_signal = any(keyword in normalized for keyword in USER_FACING_KEYWORDS)
+    if not has_user_facing_signal:
+        return False
+    if "interactive" in normalized or "cli" in normalized or "command" in normalized:
+        return True
+    return not looks_like_internal_tooling_change(entry)
+
+
+def looks_like_major_change(entry: str) -> bool:
+    normalized = _normalize_entry(entry)
+    return any(keyword in normalized for keyword in MAJOR_CHANGE_KEYWORDS)
+
+
 def evaluate_release(cwd: Path, changelog_path: Path) -> ReleaseSuggestion:
     """
     Evaluate whether the current Unreleased section suggests a release.
@@ -116,44 +202,53 @@ def evaluate_release(cwd: Path, changelog_path: Path) -> ReleaseSuggestion:
             reason="No [Unreleased] section found.",
         )
 
-    added_count = count_section_entries(unreleased, "Added")
-    fixed_count = count_section_entries(unreleased, "Fixed")
-    changed_count = count_section_entries(unreleased, "Changed")
-    docs_count = count_section_entries(unreleased, "Documentation")
-    testing_count = count_section_entries(unreleased, "Testing")
-    maintenance_count = count_section_entries(unreleased, "Maintenance")
-
-    total_entries = (
-        added_count
-        + fixed_count
-        + changed_count
-        + docs_count
-        + testing_count
-        + maintenance_count
-    )
-
     current_version = get_current_version(cwd, changelog_text)
+    section_entries = extract_section_entries(unreleased)
+    all_entries = [
+        entry
+        for entries in section_entries.values()
+        for entry in entries
+    ]
 
-    if total_entries < 3:
+    if not all_entries:
         return ReleaseSuggestion(
             should_release=False,
             release_type=None,
             next_version=None,
-            reason=f"Only {total_entries} unreleased changelog entr{'y' if total_entries == 1 else 'ies'} so far.",
+            reason="No unreleased changelog entries found.",
         )
 
-    if added_count >= 2:
-        release_type = "minor"
-        reason = "Multiple Added entries accumulated in [Unreleased]."
-    elif fixed_count >= 2 or changed_count >= 2:
-        release_type = "patch"
-        reason = "Multiple Fixed/Changed entries accumulated in [Unreleased]."
-    elif added_count >= 1 and total_entries >= 3:
-        release_type = "minor"
-        reason = "At least one Added entry plus enough accumulated unreleased changes."
+    if any(looks_like_major_change(entry) for entry in all_entries):
+        release_type = "major"
+        reason = "Unreleased changes contain a likely breaking or migration-related change."
     else:
-        release_type = "patch"
-        reason = "Enough unreleased maintenance-level changes accumulated."
+        added_entries = section_entries.get("Added", [])
+        user_facing_added_entries = [
+            entry for entry in added_entries if looks_like_user_facing_change(entry)
+        ]
+        internal_added_entries = [
+            entry for entry in added_entries if looks_like_internal_tooling_change(entry)
+        ]
+
+        if user_facing_added_entries:
+            release_type = "minor"
+            reason = "Unreleased changes include at least one clearly user-facing added feature."
+        elif any(
+            section_entries.get(section_name)
+            for section_name in ("Added", "Fixed", "Changed", "Documentation", "Testing", "Maintenance")
+        ):
+            release_type = "patch"
+            if internal_added_entries:
+                reason = "Added entries appear internal/tooling-oriented, so patch is more appropriate."
+            else:
+                reason = "Unreleased changes include non-breaking fixes, maintenance, or internal improvements."
+        else:
+            return ReleaseSuggestion(
+                should_release=False,
+                release_type=None,
+                next_version=None,
+                reason="No releasable changelog entries found.",
+            )
 
     return ReleaseSuggestion(
         should_release=True,

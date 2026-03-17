@@ -5,6 +5,9 @@
 ### Added
 - automate version number synchronization across pyproject.toml and package init file
 
+### Changed
+- enhance version release decision logic in ai_evaluator.py and evaluator.py
+
 ## [0.5.0] - 2026-03-17
 
 ### Added
