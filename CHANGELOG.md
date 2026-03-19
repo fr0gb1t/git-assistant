@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-03-19
+
 ### Added
 - add option to skip README.md workflow
 - enhance configurability of version updates across files
