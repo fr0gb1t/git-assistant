@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -26,11 +27,19 @@ from git_assistant.git.ops import (
     get_upstream_status,
     git_add_files,
     git_commit,
+    git_init,
     git_pull_ff_only,
     is_git_repo,
+    has_remote_named,
     git_push,
     git_push_tag,
     run_git_command,
+)
+from git_assistant.hosting import (
+    HostingProviderError,
+    RemoteRepositoryRequest,
+    create_remote_repository,
+    list_remote_providers,
 )
 from git_assistant.readme.service import (
     ReadmeUpdateError,
@@ -126,6 +135,12 @@ def parse_args() -> argparse.Namespace:
         dest="non_interactive",
         action="store_true",
         help="Run non-interactively using automatic default decisions where possible (--yes is kept as a compatibility alias)",
+    )
+
+    parser.add_argument(
+        "--init",
+        action="store_true",
+        help="Initialize a local repository if needed and optionally configure a remote repository",
     )
 
     return parser.parse_args()
@@ -372,6 +387,36 @@ def prompt_push_after_commit() -> str:
     return input("> ").strip()
 
 
+def prompt_remote_creation() -> str:
+    print("\n🌐 Create and configure a remote repository?")
+    print("[1] Yes")
+    print("[0] No")
+    return input("> ").strip()
+
+
+def prompt_remote_provider_choice() -> str:
+    providers = list_remote_providers()
+    print("\n🌐 Choose a remote hosting provider:")
+    for index, provider in enumerate(providers, start=1):
+        print(f"[{index}] {provider.label}")
+    print("[0] Cancel")
+    return input("> ").strip()
+
+
+def prompt_github_owner(default_owner: str | None = None) -> str:
+    prompt = "GitHub owner or organization"
+    if default_owner:
+        prompt = f"{prompt} [{default_owner}]"
+    return input(f"{prompt}: ").strip()
+
+
+def prompt_remote_visibility() -> str:
+    print("\n🔐 Repository visibility:")
+    print("[1] Private")
+    print("[2] Public")
+    return input("> ").strip()
+
+
 def prompt_edit_commit_message(suggested_message: str) -> str:
     prompt = "Edit commit message: "
 
@@ -443,6 +488,135 @@ def maybe_handle_upstream_sync(cwd: Path, *, clean_worktree: bool, non_interacti
             sys.exit(0)
 
         print("Invalid option.")
+
+
+def _default_github_owner() -> str | None:
+    for env_name in ("GITHUB_OWNER", "GITHUB_USER", "USER"):
+        value = os.environ.get(env_name)
+        if value:
+            return value
+    return None
+
+
+def _get_github_token() -> str | None:
+    for env_name in ("GITHUB_TOKEN", "GH_TOKEN"):
+        value = os.environ.get(env_name)
+        if value:
+            return value
+    return None
+
+
+def choose_remote_provider(non_interactive: bool = False) -> str | None:
+    providers = list_remote_providers()
+
+    if non_interactive:
+        return None
+
+    while True:
+        choice = prompt_remote_provider_choice()
+
+        if choice == "0":
+            return None
+
+        if choice.isdigit():
+            index = int(choice) - 1
+            if 0 <= index < len(providers):
+                return providers[index].key
+
+        print("Invalid option.")
+
+
+def maybe_configure_remote_repository(
+    cwd: Path,
+    *,
+    non_interactive: bool = False,
+) -> None:
+    if has_remote_named("origin", cwd):
+        print("🌐 Remote 'origin' is already configured.")
+        return
+
+    if non_interactive:
+        print("ℹ Skipping remote repository creation in non-interactive mode.")
+        return
+
+    while True:
+        action = prompt_remote_creation()
+
+        if action == "0":
+            return
+
+        if action == "1":
+            break
+
+        print("Invalid option.")
+
+    provider_key = choose_remote_provider(non_interactive=non_interactive)
+    if provider_key is None:
+        return
+
+    repo_name = cwd.resolve().name
+
+    if provider_key == "github":
+        token = _get_github_token()
+        if not token:
+            print(
+                "Warning: set GITHUB_TOKEN or GH_TOKEN to create GitHub repositories.",
+                file=sys.stderr,
+            )
+            return
+
+        default_owner = _default_github_owner()
+        owner = prompt_github_owner(default_owner=default_owner) or (default_owner or "")
+        if not owner:
+            print("Cancelled: no GitHub owner provided.", file=sys.stderr)
+            return
+
+        while True:
+            visibility_choice = prompt_remote_visibility()
+            if visibility_choice == "1":
+                visibility = "private"
+                break
+            if visibility_choice == "2":
+                visibility = "public"
+                break
+            print("Invalid option.")
+
+        request = RemoteRepositoryRequest(
+            owner=owner,
+            name=repo_name,
+            visibility=visibility,
+        )
+
+        try:
+            remote_url = create_remote_repository(
+                provider_key,
+                cwd,
+                request,
+                token=token,
+            )
+        except HostingProviderError as exc:
+            print(f"Remote setup failed: {exc}", file=sys.stderr)
+            return
+
+        print(f"🌐 Remote repository configured: {remote_url}")
+        return
+
+    print(f"Warning: provider '{provider_key}' is not implemented.", file=sys.stderr)
+
+
+def handle_repository_init(cwd: Path, *, non_interactive: bool = False) -> None:
+    if is_git_repo(cwd):
+        repo_root = get_repo_root(cwd)
+        print(f"📦 Repository already initialized: {repo_root}")
+    else:
+        try:
+            git_init(cwd)
+        except GitError as exc:
+            print(f"Git error while initializing repository: {exc}", file=sys.stderr)
+            sys.exit(1)
+        print(f"📦 Repository initialized: {cwd}")
+
+    maybe_configure_remote_repository(cwd, non_interactive=non_interactive)
 
 def prompt_readme_update_action() -> str:
     print("\n📘 README update available:")
@@ -1086,6 +1260,10 @@ def main() -> None:
     args = parse_args()
     cwd = Path.cwd()
     non_interactive = getattr(args, "non_interactive", getattr(args, "yes", False))
+
+    if getattr(args, "init", False):
+        handle_repository_init(cwd, non_interactive=non_interactive)
+        sys.exit(0)
 
     if not is_git_repo(cwd):
         print("Error: not inside a Git repository.", file=sys.stderr)

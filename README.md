@@ -6,7 +6,7 @@
 
 ## AI‑powered Git workflow assistant for commit, changelog, README, and release management.
 
-`git-assistant` analyzes your Git changes, generates commit messages with AI, updates `CHANGELOG.md`, evaluates README changes, suggests releases, and can publish commits or releases to the remote repository. It is designed to streamline the **commit → changelog → README → release** workflow while keeping Git operations explicit and recoverable.
+git-assistant analyzes your Git changes, generates commit messages with AI, updates `CHANGELOG.md`, evaluates README changes, suggests releases, and can publish commits or releases to the remote repository. It is designed to streamline the **commit → changelog → README → release** workflow while keeping Git operations explicit and recoverable.
 
 ------------------------------------------------------------------------
 ## ✅ What It Promises
@@ -23,13 +23,7 @@
 - Interactive mode remains the default; automation requires explicit flags
 
 ------------------------------------------------------------------------
-## ✨ Features
-### Additional Enhancements:
-- **First Stable Release Hint:** Provides a hint in the CLI for the first stable release.
-- **Upstream Sync & Push Prompts:** Supports prompting for upstream synchronization and push operations.
-- **Non-Interactive Mode:** Enables non-interactive automation mode.
 
-------------------------------------------------------------------------
 ## ⚡ Quick Usage
 ### Standard Workflow:
 ``` bash
@@ -63,7 +57,14 @@ or
 ### Non-Interactive Automation Mode:
 ``` bash
     git-assistant --non-interactive
-```
+
+------------------------------------------------------------------------
+## ✨ Features
+### Additional Enhancements:
+- **First Stable Release Hint:** Provides a hint in the CLI for the first stable release.
+- **Upstream Sync & Push Prompts:** Supports prompting for upstream synchronization and push operations.
+- **Non-Interactive Mode:** Enables non-interactive mode for automation.
+- **Repository Initialization Capability:** Adds capability to initialize repositories with necessary configurations.
 
 ------------------------------------------------------------------------
 ## 📦 Installation
@@ -77,7 +78,6 @@ Run the tool:
 ``` bash
 git-assistant
 ```
-
 ### Runtime requirements
 - Python 3.10+
 - Git available in `PATH`
@@ -88,7 +88,6 @@ git-assistant
 ``` bash
 pip install -e ".[dev]"
 ```
-
 ------------------------------------------------------------------------
 ## 📂 File Selection
 You can select files using:
@@ -111,7 +110,6 @@ Includes **all selectable files**.
 
 ------------------------------------------------------------------------
 ## 📝 CHANGELOG Behavior
-
 `git-assistant` automatically updates `CHANGELOG.md` before creating a commit. Key rules:
 - The entry is derived from the generated commit message.
 - `CHANGELOG.md` is **automatically staged**.
@@ -138,9 +136,8 @@ By default, `git-assistant` is interactive and asks for confirmation before appl
 
 If you want a non-interactive run, use:
 ``` bash
-    git-assistant --non-interactive
+git-assistant --non-interactive
 ```
-
 In `--non-interactive` mode the tool uses automatic defaults:
 - all selectable files are included
 - the suggested commit message is accepted

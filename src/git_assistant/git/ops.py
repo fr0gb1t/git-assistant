@@ -146,6 +146,14 @@ def get_changed_files(cwd: Path | None = None) -> list[str]:
     """
     return [path for _, path in get_status_entries(cwd=cwd)]
 
+
+def git_init(cwd: Path | None = None) -> str:
+    """
+    Initialize a git repository in cwd.
+    """
+    return run_git_command(["init"], cwd=cwd)
+
+
 def git_add_all(cwd: Path | None = None) -> None:
     """
     Stage all changes in the current repository.
@@ -305,3 +313,14 @@ def git_push_tag(cwd: Path, tag: str) -> None:
 
 def git_pull_ff_only(cwd: Path) -> None:
     run_git_command(["pull", "--ff-only"], cwd)
+
+
+def has_remote_named(name: str, cwd: Path | None = None) -> bool:
+    """
+    Return True when the repository has a remote configured with the given name.
+    """
+    try:
+        run_git_command(["remote", "get-url", name], cwd=cwd)
+        return True
+    except GitError:
+        return False
