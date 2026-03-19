@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-03-19
+
 ### Added
 - add support for environment variable detection
 
