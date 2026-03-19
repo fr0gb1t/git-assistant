@@ -18,7 +18,7 @@ from git_assistant.commit.service import (
     CommitMessageResult,
     generate_commit_message,
 )
-from git_assistant.config.loader import ConfigError, load_app_config
+from git_assistant.config.loader import AppConfig, ConfigError, load_app_config
 from git_assistant.git.ops import (
     GitError,
     get_changed_files,
@@ -208,9 +208,9 @@ def filter_selectable_files(changed_files: list[str]) -> list[str]:
     return [file_path for file_path in changed_files if file_path not in auto_files]
 
 
-def build_ai_config(args: argparse.Namespace, cwd: Path) -> AIConfig:
+def build_app_config(args: argparse.Namespace, cwd: Path) -> AppConfig:
     """
-    Build the final AI config using:
+    Build the final application config using:
     CLI args > config file > defaults
     """
     try:
@@ -235,7 +235,7 @@ def build_ai_config(args: argparse.Namespace, cwd: Path) -> AIConfig:
 
     ai_config.debug = args.debug
 
-    return ai_config
+    return app_config
 
 
 def print_ai_config(ai_config: AIConfig) -> None:
@@ -865,6 +865,7 @@ def prompt_release_choice(
 def apply_release(
     cwd: Path,
     version: str,
+    release_config,
 ) -> None:
     """
     Apply a release by closing the Unreleased section,
@@ -874,13 +875,17 @@ def apply_release(
     normalized_version = normalize_release_version(version)
 
     try:
-        prepare_release_changelog(cwd, version=normalized_version)
+        prepare_release_changelog(
+            cwd,
+            version=normalized_version,
+            release_config=release_config,
+        )
     except (OSError, ValueError) as exc:
         print(f"Warning: failed to prepare release changelog: {exc}", file=sys.stderr)
         return
 
     try:
-        git_add_files(get_release_managed_files(cwd), cwd)
+        git_add_files(get_release_managed_files(cwd, release_config), cwd)
         git_commit(f"chore(release): publish v{normalized_version}", cwd)
     except GitError as exc:
         print(f"Git error while creating release commit: {exc}", file=sys.stderr)
@@ -1195,6 +1200,7 @@ def handle_post_commit_actions(
     ai_suggestion,
     release_decision,
     first_stable_hint,
+    release_config,
     *,
     debug: bool = False,
     non_interactive: bool = False,
@@ -1227,7 +1233,7 @@ def handle_post_commit_actions(
 
     if release_version is not None:
         try:
-            apply_release(cwd, release_version)
+            apply_release(cwd, release_version, release_config)
         except GitError as exc:
             print(
                 f"Warning: release could not be created: {exc}",
@@ -1266,6 +1272,7 @@ def main() -> None:
     args = parse_args()
     cwd = Path.cwd()
     non_interactive = getattr(args, "non_interactive", getattr(args, "yes", False))
+    app_config = build_app_config(args, cwd)
 
     if getattr(args, "init", False):
         handle_repository_init(cwd, non_interactive=non_interactive)
@@ -1286,7 +1293,7 @@ def main() -> None:
 
         print(f"📦 Repository: {get_repo_root(cwd)}")
         print(f"🚀 Applying manual release: {version}")
-        apply_release(cwd, version)
+        apply_release(cwd, version, app_config.release)
         sys.exit(0)
 
     try:
@@ -1314,7 +1321,7 @@ def main() -> None:
         print("Only auto-included files are currently modified.")
         sys.exit(0)
 
-    ai_config = build_ai_config(args, cwd)
+    ai_config = app_config.ai
 
     print(f"📦 Repository: {repo_root}")
 
@@ -1403,6 +1410,7 @@ def main() -> None:
         ai_suggestion,
         release_decision,
         first_stable_hint,
+        app_config.release,
         debug=ai_config.debug,
         non_interactive=non_interactive,
     )

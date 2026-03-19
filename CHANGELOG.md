@@ -4,6 +4,7 @@
 
 ### Added
 - add option to skip README.md workflow
+- enhance configurability of version updates across files
 
 ### Changed
 - move release-managed files logic to separate function

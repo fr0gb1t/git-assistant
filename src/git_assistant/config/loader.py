@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +29,20 @@ class AppConfig:
     """
 
     ai: AIConfig
+    release: "ReleaseConfig" = field(default_factory=lambda: ReleaseConfig())
+
+
+@dataclass(slots=True)
+class ReleaseVersionTarget:
+    path: str
+    pattern: str
+    replacement: str
+
+
+@dataclass(slots=True)
+class ReleaseConfig:
+    managed_files: list[str] = field(default_factory=lambda: ["CHANGELOG.md"])
+    version_targets: list[ReleaseVersionTarget] = field(default_factory=list)
 
 
 def find_config_file(start_dir: Path) -> Path | None:
@@ -83,13 +97,63 @@ def parse_config_dict(data: dict[str, Any]) -> AppConfig:
     if not isinstance(timeout, int):
         raise ConfigError("ai.timeout must be an integer.")
 
+    release_data = data.get("release", {})
+    if not isinstance(release_data, dict):
+        raise ConfigError("[release] section must be a table/object.")
+
+    managed_files = release_data.get("managed_files", ["CHANGELOG.md"])
+    if not isinstance(managed_files, list) or not all(
+        isinstance(item, str) for item in managed_files
+    ):
+        raise ConfigError("release.managed_files must be an array of strings.")
+
+    version_targets_data = release_data.get("version_targets", [])
+    if not isinstance(version_targets_data, list):
+        raise ConfigError("release.version_targets must be an array of tables.")
+
+    version_targets: list[ReleaseVersionTarget] = []
+    for index, item in enumerate(version_targets_data):
+        if not isinstance(item, dict):
+            raise ConfigError(
+                f"release.version_targets[{index}] must be a table/object."
+            )
+
+        path = item.get("path")
+        pattern = item.get("pattern")
+        replacement = item.get("replacement")
+
+        if not isinstance(path, str) or not path:
+            raise ConfigError(
+                f"release.version_targets[{index}].path must be a non-empty string."
+            )
+        if not isinstance(pattern, str) or not pattern:
+            raise ConfigError(
+                f"release.version_targets[{index}].pattern must be a non-empty string."
+            )
+        if not isinstance(replacement, str) or not replacement:
+            raise ConfigError(
+                f"release.version_targets[{index}].replacement must be a non-empty string."
+            )
+
+        version_targets.append(
+            ReleaseVersionTarget(
+                path=path,
+                pattern=pattern,
+                replacement=replacement,
+            )
+        )
+
     return AppConfig(
         ai=AIConfig(
             provider=provider,
             model=model,
             host=host,
             timeout=timeout,
-        )
+        ),
+        release=ReleaseConfig(
+            managed_files=list(managed_files),
+            version_targets=version_targets,
+        ),
     )
 
 

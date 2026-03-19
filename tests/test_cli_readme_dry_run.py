@@ -9,6 +9,7 @@ from unittest.mock import patch
 from git_assistant.ai.base import AIConfig
 from git_assistant.cli import main, maybe_handle_readme_update
 from git_assistant.commit.service import CommitMessageResult
+from git_assistant.config.loader import AppConfig
 from git_assistant.readme.parser import ReadmeUpdateResult
 from git_assistant.release.decision import ReleaseDecision
 from git_assistant.release.evaluator import ReleaseSuggestion
@@ -90,7 +91,7 @@ class ReadmeDryRunTests(unittest.TestCase):
                 with patch("git_assistant.cli.get_repo_root", return_value=Path("/repo")):
                     with patch("git_assistant.cli.get_status_short", return_value=" M cli.py"):
                         with patch("git_assistant.cli.get_changed_files", return_value=["src/git_assistant/cli.py"]):
-                            with patch("git_assistant.cli.build_ai_config", return_value=AIConfig()):
+                            with patch("git_assistant.cli.build_app_config", return_value=AppConfig(ai=AIConfig())):
                                 with patch("git_assistant.cli.generate_and_display_commit_message", return_value=result):
                                     with patch("git_assistant.cli.prompt_user_action", return_value="1"):
                                         with patch("git_assistant.cli.update_changelog"):
@@ -143,7 +144,7 @@ class ReadmeDryRunTests(unittest.TestCase):
                     with patch("git_assistant.cli.get_status_short", return_value=" M cli.py"):
                         with patch("git_assistant.cli.get_changed_files", return_value=["src/git_assistant/cli.py"]):
                             with patch("git_assistant.cli.maybe_handle_upstream_sync"):
-                                with patch("git_assistant.cli.build_ai_config", return_value=AIConfig()):
+                                with patch("git_assistant.cli.build_app_config", return_value=AppConfig(ai=AIConfig())):
                                     with patch("git_assistant.cli.generate_and_display_commit_message", return_value=result):
                                         with patch("git_assistant.cli.prompt_user_action", return_value="1"):
                                             with patch("git_assistant.cli.update_changelog"):

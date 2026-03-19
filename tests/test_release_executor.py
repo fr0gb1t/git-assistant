@@ -4,9 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from git_assistant.config.loader import ReleaseConfig, ReleaseVersionTarget
 from git_assistant.release.executor import (
-    PACKAGE_INIT_FILE,
-    PYPROJECT_FILE,
     get_release_managed_files,
     normalize_release_version,
     sync_project_version_files,
@@ -25,8 +24,8 @@ class ReleaseExecutorVersionSyncTests(unittest.TestCase):
     def test_sync_project_version_files_updates_pyproject_and_package_version(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             cwd = Path(tmp_dir)
-            pyproject_path = cwd / PYPROJECT_FILE
-            package_init_path = cwd / PACKAGE_INIT_FILE
+            pyproject_path = cwd / "pyproject.toml"
+            package_init_path = cwd / "src/app/__init__.py"
             package_init_path.parent.mkdir(parents=True, exist_ok=True)
 
             pyproject_path.write_text(
@@ -35,7 +34,23 @@ class ReleaseExecutorVersionSyncTests(unittest.TestCase):
             )
             package_init_path.write_text('__version__ = "0.1.0"\n', encoding="utf-8")
 
-            sync_project_version_files(cwd, version="0.5.0")
+            release_config = ReleaseConfig(
+                managed_files=["CHANGELOG.md", "pyproject.toml", "src/app/__init__.py"],
+                version_targets=[
+                    ReleaseVersionTarget(
+                        path="pyproject.toml",
+                        pattern=r'^(version = )"[^"]+"$',
+                        replacement='\\g<1>"{version}"',
+                    ),
+                    ReleaseVersionTarget(
+                        path="src/app/__init__.py",
+                        pattern=r'^__version__ = "[^"]+"$',
+                        replacement='__version__ = "{version}"',
+                    ),
+                ],
+            )
+
+            sync_project_version_files(cwd, version="0.5.0", release_config=release_config)
 
             self.assertIn('version = "0.5.0"', pyproject_path.read_text(encoding="utf-8"))
             self.assertEqual(
@@ -49,23 +64,33 @@ class ReleaseExecutorVersionSyncTests(unittest.TestCase):
 
             sync_project_version_files(cwd, version="0.5.0")
 
-            self.assertFalse((cwd / PYPROJECT_FILE).exists())
-            self.assertFalse((cwd / PACKAGE_INIT_FILE).exists())
+            self.assertFalse((cwd / "pyproject.toml").exists())
+            self.assertFalse((cwd / "src/app/__init__.py").exists())
 
     def test_get_release_managed_files_only_includes_existing_optional_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             cwd = Path(tmp_dir)
             (cwd / "CHANGELOG.md").write_text("# Changelog\n", encoding="utf-8")
-            (cwd / PYPROJECT_FILE).write_text(
+            (cwd / "pyproject.toml").write_text(
                 '[project]\nname = "sample"\nversion = "0.1.0"\n',
                 encoding="utf-8",
             )
 
-            managed_files = get_release_managed_files(cwd)
+            release_config = ReleaseConfig(
+                managed_files=["CHANGELOG.md"],
+                version_targets=[
+                    ReleaseVersionTarget(
+                        path="pyproject.toml",
+                        pattern=r'^(version = )"[^"]+"$',
+                        replacement='\\g<1>"{version}"',
+                    )
+                ],
+            )
+            managed_files = get_release_managed_files(cwd, release_config)
 
             self.assertEqual(
                 managed_files,
-                ["CHANGELOG.md", PYPROJECT_FILE],
+                ["CHANGELOG.md", "pyproject.toml"],
             )
 
 

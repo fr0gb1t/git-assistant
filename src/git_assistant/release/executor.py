@@ -6,18 +6,9 @@ from datetime import date
 from pathlib import Path
 
 from git_assistant.changelog.writer import finalize_unreleased_release
+from git_assistant.config.loader import ReleaseConfig, ReleaseVersionTarget
 from git_assistant.git.tags import create_git_tag
 
-PYPROJECT_FILE = "pyproject.toml"
-PACKAGE_INIT_FILE = "src/git_assistant/__init__.py"
-RELEASE_MANAGED_FILES = [
-    "CHANGELOG.md",
-    PYPROJECT_FILE,
-    PACKAGE_INIT_FILE,
-]
-
-PYPROJECT_VERSION_RE = re.compile(r'(?m)^(version = )"[^"]+"$')
-PACKAGE_VERSION_RE = re.compile(r'(?m)^__version__ = "[^"]+"$')
 SEMVER_RE = re.compile(r"^v?(\d+\.\d+\.\d+)$")
 
 
@@ -40,14 +31,18 @@ def normalize_release_version(version: str) -> str:
     return match.group(1)
 
 
-def prepare_release_changelog(cwd: Path, version: str) -> PreparedRelease:
+def prepare_release_changelog(
+    cwd: Path,
+    version: str,
+    release_config: ReleaseConfig | None = None,
+) -> PreparedRelease:
     """
     Convert [Unreleased] into a released changelog section and sync project
     version files before commit.
     """
     normalized_version = normalize_release_version(version)
     release_date = date.today().isoformat()
-    sync_project_version_files(cwd, version=normalized_version)
+    sync_project_version_files(cwd, version=normalized_version, release_config=release_config)
     finalize_unreleased_release(cwd, version=normalized_version, release_date=release_date)
 
     return PreparedRelease(
@@ -57,15 +52,25 @@ def prepare_release_changelog(cwd: Path, version: str) -> PreparedRelease:
     )
 
 
-def get_release_managed_files(cwd: Path) -> list[str]:
+def get_release_managed_files(
+    cwd: Path,
+    release_config: ReleaseConfig | None = None,
+) -> list[str]:
     """
     Return only the release-managed files that actually exist in this repository.
     CHANGELOG.md is always included because release preparation depends on it.
     """
-    managed_files = ["CHANGELOG.md"]
+    config = release_config or ReleaseConfig()
+    configured_files = list(config.managed_files)
 
-    for file_path in (PYPROJECT_FILE, PACKAGE_INIT_FILE):
-        if (cwd / file_path).exists():
+    for target in config.version_targets:
+        if target.path not in configured_files:
+            configured_files.append(target.path)
+
+    managed_files: list[str] = []
+
+    for file_path in configured_files:
+        if file_path == "CHANGELOG.md" or (cwd / file_path).exists():
             managed_files.append(file_path)
 
     return managed_files
@@ -81,42 +86,35 @@ def create_release_tag(cwd: Path, version: str) -> str:
     return tag
 
 
-def sync_project_version_files(cwd: Path, version: str) -> None:
+def sync_project_version_files(
+    cwd: Path,
+    version: str,
+    release_config: ReleaseConfig | None = None,
+) -> None:
     """
     Update version declarations that should match the released Git tag.
     """
     normalized_version = normalize_release_version(version)
-    pyproject_path = cwd / PYPROJECT_FILE
-    package_init_path = cwd / PACKAGE_INIT_FILE
+    config = release_config or ReleaseConfig()
 
-    if pyproject_path.exists():
-        _update_pyproject_version(pyproject_path, normalized_version)
+    for target in config.version_targets:
+        target_path = cwd / target.path
+        if not target_path.exists():
+            continue
 
-    if package_init_path.exists():
-        _update_package_init_version(package_init_path, normalized_version)
+        _update_version_target(target_path, target, normalized_version)
 
-
-def _update_pyproject_version(pyproject_path: Path, version: str) -> None:
-    content = pyproject_path.read_text(encoding="utf-8")
-    updated, count = PYPROJECT_VERSION_RE.subn(rf'\1"{version}"', content, count=1)
+def _update_version_target(
+    target_path: Path,
+    target: ReleaseVersionTarget,
+    version: str,
+) -> None:
+    content = target_path.read_text(encoding="utf-8")
+    pattern = re.compile(target.pattern, re.MULTILINE)
+    replacement = target.replacement.format(version=version)
+    updated, count = pattern.subn(replacement, content, count=1)
     if count != 1:
-        raise ValueError("Could not find [project].version in pyproject.toml.")
-    pyproject_path.write_text(updated, encoding="utf-8")
-
-
-def _update_package_init_version(init_path: Path, version: str) -> None:
-    if init_path.exists():
-        content = init_path.read_text(encoding="utf-8")
-    else:
-        content = ""
-
-    version_line = f'__version__ = "{version}"'
-    if PACKAGE_VERSION_RE.search(content):
-        updated = PACKAGE_VERSION_RE.sub(version_line, content, count=1)
-    else:
-        updated = content.rstrip()
-        if updated:
-            updated += "\n\n"
-        updated += version_line + "\n"
-
-    init_path.write_text(updated, encoding="utf-8")
+        raise ValueError(
+            f"Could not update configured release version target: {target.path}"
+        )
+    target_path.write_text(updated, encoding="utf-8")
