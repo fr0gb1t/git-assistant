@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-03-19
+
 ### Added
 - prompt for GitHub token during repository creation
 
