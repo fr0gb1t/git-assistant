@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- add option to skip README.md workflow
+
 ## [1.0.1] - 2026-03-19
 
 ### Added

@@ -62,6 +62,7 @@ class ReadmeDryRunTests(unittest.TestCase):
             timeout=None,
             debug=False,
             dry_run=True,
+            skip_readme=False,
             all_files=True,
         )
         result = CommitMessageResult(
@@ -103,6 +104,72 @@ class ReadmeDryRunTests(unittest.TestCase):
                                                             main()
 
         mock_restore.assert_called_once()
+
+    def test_main_skip_readme_bypasses_readme_workflow(self) -> None:
+        args = Namespace(
+            provider=None,
+            model=None,
+            host=None,
+            timeout=None,
+            debug=False,
+            dry_run=False,
+            skip_readme=True,
+            all_files=True,
+            release=None,
+        )
+        result = CommitMessageResult(
+            message="fix(cli): skip readme workflow",
+            was_truncated=False,
+            staged_included=False,
+            unstaged_included=True,
+            untracked_included=False,
+        )
+        heuristic = ReleaseSuggestion(
+            should_release=False,
+            release_type=None,
+            next_version=None,
+            reason="No release",
+        )
+        decision = ReleaseDecision(
+            should_apply=False,
+            release_type=None,
+            next_version=None,
+            reason="No release",
+        )
+
+        with patch("git_assistant.cli.parse_args", return_value=args):
+            with patch("git_assistant.cli.is_git_repo", return_value=True):
+                with patch("git_assistant.cli.get_repo_root", return_value=Path("/repo")):
+                    with patch("git_assistant.cli.get_status_short", return_value=" M cli.py"):
+                        with patch("git_assistant.cli.get_changed_files", return_value=["src/git_assistant/cli.py"]):
+                            with patch("git_assistant.cli.maybe_handle_upstream_sync"):
+                                with patch("git_assistant.cli.build_ai_config", return_value=AIConfig()):
+                                    with patch("git_assistant.cli.generate_and_display_commit_message", return_value=result):
+                                        with patch("git_assistant.cli.prompt_user_action", return_value="1"):
+                                            with patch("git_assistant.cli.update_changelog"):
+                                                with patch("git_assistant.cli.maybe_handle_readme_update") as mock_readme:
+                                                    with patch(
+                                                        "git_assistant.cli.evaluate_release_suggestions",
+                                                        return_value=(heuristic, None, decision),
+                                                    ):
+                                                        with patch(
+                                                            "git_assistant.cli.evaluate_first_stable_hint",
+                                                        ) as mock_hint:
+                                                            mock_hint.return_value = unittest.mock.Mock(
+                                                                should_suggest=False,
+                                                                version=None,
+                                                                reason="",
+                                                            )
+                                                            with patch("git_assistant.cli.git_add_files") as mock_add:
+                                                                with patch("git_assistant.cli.git_commit", return_value="[main abc123] msg"):
+                                                                    with patch("git_assistant.cli.prompt_push_after_commit", return_value="0"):
+                                                                        main()
+
+        mock_readme.assert_not_called()
+        mock_add.assert_called_once_with(
+            ["src/git_assistant/cli.py", "CHANGELOG.md"],
+            Path.cwd(),
+        )
 
 
 if __name__ == "__main__":

@@ -118,6 +118,12 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--skip-readme",
+        action="store_true",
+        help="Skip README.md evaluation, generation, editing, and staging during the workflow",
+    )
+
+    parser.add_argument(
         "--all-files",
         action="store_true",
         help="Include all changed files without prompting for selection",
@@ -1327,13 +1333,18 @@ def main() -> None:
 
     try:
         update_changelog(cwd, final_message)
+        skip_readme = getattr(args, "skip_readme", False)
+        readme_applied = False
 
-        readme_applied = maybe_handle_readme_update(
-            cwd,
-            ai_config,
-            dry_run=args.dry_run,
-            non_interactive=non_interactive,
-        )
+        if skip_readme:
+            print("⏭ Skipping README.md workflow.")
+        else:
+            readme_applied = maybe_handle_readme_update(
+                cwd,
+                ai_config,
+                dry_run=args.dry_run,
+                non_interactive=non_interactive,
+            )
 
         heuristic_suggestion, ai_suggestion, release_decision = evaluate_release_suggestions(
             cwd,
