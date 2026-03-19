@@ -393,10 +393,11 @@ def prompt_push_after_commit() -> str:
     return input("> ").strip()
 
 
-def prompt_remote_creation() -> str:
-    print("\n🌐 Create and configure a remote repository?")
-    print("[1] Yes")
-    print("[0] No")
+def prompt_remote_setup_action() -> str:
+    print("\n🌐 Configure a remote repository:")
+    print("[1] Create a new remote repository")
+    print("[2] Add an existing remote URL")
+    print("[0] Cancel")
     return input("> ").strip()
 
 
@@ -421,6 +422,17 @@ def prompt_remote_visibility() -> str:
     print("[1] Private")
     print("[2] Public")
     return input("> ").strip()
+
+
+def prompt_remote_protocol() -> str:
+    print("\n🔗 Remote URL protocol:")
+    print("[1] SSH")
+    print("[2] HTTPS")
+    return input("> ").strip()
+
+
+def prompt_existing_remote_url() -> str:
+    return input("Remote URL for origin: ").strip()
 
 
 def prompt_edit_commit_message(suggested_message: str) -> str:
@@ -546,68 +558,93 @@ def maybe_configure_remote_repository(
         return
 
     while True:
-        action = prompt_remote_creation()
+        action = prompt_remote_setup_action()
 
         if action == "0":
             return
 
         if action == "1":
-            break
+            provider_key = choose_remote_provider(non_interactive=non_interactive)
+            if provider_key is None:
+                return
+
+            repo_name = cwd.resolve().name
+
+            if provider_key == "github":
+                default_owner = _default_github_owner()
+                owner = prompt_github_owner(default_owner=default_owner) or (default_owner or "")
+                if not owner:
+                    print("Cancelled: no GitHub owner provided.", file=sys.stderr)
+                    return
+
+                while True:
+                    visibility_choice = prompt_remote_visibility()
+                    if visibility_choice == "1":
+                        visibility = "private"
+                        break
+                    if visibility_choice == "2":
+                        visibility = "public"
+                        break
+                    print("Invalid option.")
+
+                while True:
+                    protocol_choice = prompt_remote_protocol()
+                    if protocol_choice == "1":
+                        remote_protocol = "ssh"
+                        break
+                    if protocol_choice == "2":
+                        remote_protocol = "https"
+                        break
+                    print("Invalid option.")
+
+                token = _get_github_token()
+                if not token:
+                    print(
+                        "Warning: set GITHUB_TOKEN or GH_TOKEN to create GitHub repositories via API.",
+                        file=sys.stderr,
+                    )
+                    continue
+
+                request = RemoteRepositoryRequest(
+                    owner=owner,
+                    name=repo_name,
+                    visibility=visibility,
+                    remote_protocol=remote_protocol,
+                )
+
+                try:
+                    remote_url = create_remote_repository(
+                        provider_key,
+                        cwd,
+                        request,
+                        token=token,
+                    )
+                except HostingProviderError as exc:
+                    print(f"Remote setup failed: {exc}", file=sys.stderr)
+                    continue
+
+                print(f"🌐 Remote repository configured: {remote_url}")
+                return
+
+            print(f"Warning: provider '{provider_key}' is not implemented.", file=sys.stderr)
+            continue
+
+        if action == "2":
+            remote_url = prompt_existing_remote_url()
+            if not remote_url:
+                print("Cancelled: no remote URL provided.", file=sys.stderr)
+                return
+
+            try:
+                run_git_command(["remote", "add", "origin", remote_url], cwd=cwd)
+            except GitError as exc:
+                print(f"Remote setup failed: {exc}", file=sys.stderr)
+                continue
+
+            print(f"🌐 Remote 'origin' configured: {remote_url}")
+            return
 
         print("Invalid option.")
-
-    provider_key = choose_remote_provider(non_interactive=non_interactive)
-    if provider_key is None:
-        return
-
-    repo_name = cwd.resolve().name
-
-    if provider_key == "github":
-        token = _get_github_token()
-        if not token:
-            print(
-                "Warning: set GITHUB_TOKEN or GH_TOKEN to create GitHub repositories.",
-                file=sys.stderr,
-            )
-            return
-
-        default_owner = _default_github_owner()
-        owner = prompt_github_owner(default_owner=default_owner) or (default_owner or "")
-        if not owner:
-            print("Cancelled: no GitHub owner provided.", file=sys.stderr)
-            return
-
-        while True:
-            visibility_choice = prompt_remote_visibility()
-            if visibility_choice == "1":
-                visibility = "private"
-                break
-            if visibility_choice == "2":
-                visibility = "public"
-                break
-            print("Invalid option.")
-
-        request = RemoteRepositoryRequest(
-            owner=owner,
-            name=repo_name,
-            visibility=visibility,
-        )
-
-        try:
-            remote_url = create_remote_repository(
-                provider_key,
-                cwd,
-                request,
-                token=token,
-            )
-        except HostingProviderError as exc:
-            print(f"Remote setup failed: {exc}", file=sys.stderr)
-            return
-
-        print(f"🌐 Remote repository configured: {remote_url}")
-        return
-
-    print(f"Warning: provider '{provider_key}' is not implemented.", file=sys.stderr)
 
 
 def ensure_origin_remote(

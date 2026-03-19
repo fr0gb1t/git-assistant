@@ -30,27 +30,44 @@ class InitFlowTests(unittest.TestCase):
 
     def test_maybe_configure_remote_repository_skips_when_origin_exists(self) -> None:
         with patch("git_assistant.cli.has_remote_named", return_value=True):
-            with patch("git_assistant.cli.prompt_remote_creation") as mock_prompt:
+            with patch("git_assistant.cli.prompt_remote_setup_action") as mock_prompt:
                 maybe_configure_remote_repository(Path("/repo"))
 
         mock_prompt.assert_not_called()
 
     def test_maybe_configure_remote_repository_creates_github_remote(self) -> None:
         with patch("git_assistant.cli.has_remote_named", return_value=False):
-            with patch("git_assistant.cli.prompt_remote_creation", return_value="1"):
+            with patch("git_assistant.cli.prompt_remote_setup_action", return_value="1"):
                 with patch("git_assistant.cli.prompt_remote_provider_choice", return_value="1"):
                     with patch("git_assistant.cli.prompt_github_owner", return_value="frogbit"):
                         with patch("git_assistant.cli.prompt_remote_visibility", return_value="1"):
-                            with patch("git_assistant.cli._get_github_token", return_value="secret"):
-                                with patch("git_assistant.cli.create_remote_repository", return_value="https://github.com/frogbit/repo.git") as mock_create:
-                                    maybe_configure_remote_repository(Path("/repo"))
+                            with patch("git_assistant.cli.prompt_remote_protocol", return_value="1"):
+                                with patch("git_assistant.cli._get_github_token", return_value="secret"):
+                                    with patch("git_assistant.cli.create_remote_repository", return_value="git@github.com:frogbit/repo.git") as mock_create:
+                                        maybe_configure_remote_repository(Path("/repo"))
 
         request = mock_create.call_args.args[2]
         self.assertEqual(mock_create.call_args.args[:2], ("github", Path("/repo")))
         self.assertEqual(request.owner, "frogbit")
         self.assertEqual(request.name, "repo")
         self.assertEqual(request.visibility, "private")
+        self.assertEqual(request.remote_protocol, "ssh")
         self.assertEqual(mock_create.call_args.kwargs["token"], "secret")
+
+    def test_maybe_configure_remote_repository_can_add_existing_remote_url(self) -> None:
+        with patch("git_assistant.cli.has_remote_named", return_value=False):
+            with patch("git_assistant.cli.prompt_remote_setup_action", return_value="2"):
+                with patch(
+                    "git_assistant.cli.prompt_existing_remote_url",
+                    return_value="git@github.com:frogbit/repo.git",
+                ):
+                    with patch("git_assistant.cli.run_git_command") as mock_git:
+                        maybe_configure_remote_repository(Path("/repo"))
+
+        mock_git.assert_called_once_with(
+            ["remote", "add", "origin", "git@github.com:frogbit/repo.git"],
+            cwd=Path("/repo"),
+        )
 
     def test_main_init_mode_exits_after_setup(self) -> None:
         args = Namespace(

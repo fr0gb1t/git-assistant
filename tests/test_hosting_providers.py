@@ -18,7 +18,8 @@ class HostingProvidersTests(unittest.TestCase):
 
         create_response = Mock(status_code=201)
         create_response.json.return_value = {
-            "clone_url": "https://github.com/frogbit/sample.git"
+            "clone_url": "https://github.com/frogbit/sample.git",
+            "ssh_url": "git@github.com:frogbit/sample.git",
         }
 
         with patch("git_assistant.hosting.providers.requests.get", return_value=owner_response):
@@ -31,6 +32,7 @@ class HostingProvidersTests(unittest.TestCase):
                             owner="frogbit",
                             name="sample",
                             visibility="private",
+                            remote_protocol="https",
                         ),
                         token="secret",
                     )
@@ -52,7 +54,8 @@ class HostingProvidersTests(unittest.TestCase):
 
         create_response = Mock(status_code=201)
         create_response.json.return_value = {
-            "clone_url": "https://github.com/acme/sample.git"
+            "clone_url": "https://github.com/acme/sample.git",
+            "ssh_url": "git@github.com:acme/sample.git",
         }
 
         with patch("git_assistant.hosting.providers.requests.get", return_value=owner_response):
@@ -65,6 +68,7 @@ class HostingProvidersTests(unittest.TestCase):
                             owner="acme",
                             name="sample",
                             visibility="public",
+                            remote_protocol="https",
                         ),
                         token="secret",
                     )
@@ -90,6 +94,36 @@ class HostingProvidersTests(unittest.TestCase):
                     RemoteRepositoryRequest(owner="missing", name="sample"),
                     token="secret",
                 )
+
+    def test_create_github_repository_can_use_ssh_url(self) -> None:
+        owner_response = Mock(status_code=200)
+        owner_response.json.return_value = {"type": "User"}
+
+        create_response = Mock(status_code=201)
+        create_response.json.return_value = {
+            "clone_url": "https://github.com/frogbit/sample.git",
+            "ssh_url": "git@github.com:frogbit/sample.git",
+        }
+
+        with patch("git_assistant.hosting.providers.requests.get", return_value=owner_response):
+            with patch("git_assistant.hosting.providers.requests.post", return_value=create_response):
+                with patch("git_assistant.hosting.providers.run_git_command") as mock_git:
+                    remote_url = create_remote_repository(
+                        "github",
+                        Path("/repo"),
+                        RemoteRepositoryRequest(
+                            owner="frogbit",
+                            name="sample",
+                            remote_protocol="ssh",
+                        ),
+                        token="secret",
+                    )
+
+        self.assertEqual(remote_url, "git@github.com:frogbit/sample.git")
+        mock_git.assert_called_once_with(
+            ["remote", "add", "origin", "git@github.com:frogbit/sample.git"],
+            cwd=Path("/repo"),
+        )
 
 
 if __name__ == "__main__":

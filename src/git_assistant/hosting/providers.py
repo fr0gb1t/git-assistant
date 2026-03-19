@@ -17,6 +17,7 @@ class RemoteRepositoryRequest:
     owner: str
     name: str
     visibility: str = "private"
+    remote_protocol: str = "https"
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,16 +98,28 @@ def _create_github_repository(
     if create_response.status_code not in {200, 201}:
         raise HostingProviderError(_build_github_error(create_response))
 
-    clone_url = create_response.json().get("clone_url")
-    if not clone_url:
-        raise HostingProviderError("GitHub API response did not include clone_url.")
+    payload = create_response.json()
+    remote_url = _select_remote_url(payload, request.remote_protocol)
 
     try:
-        run_git_command(["remote", "add", "origin", clone_url], cwd=cwd)
+        run_git_command(["remote", "add", "origin", remote_url], cwd=cwd)
     except GitError as exc:
         raise HostingProviderError(f"Remote repository created but origin could not be added: {exc}") from exc
 
-    return clone_url
+    return remote_url
+
+
+def _select_remote_url(payload: dict, protocol: str) -> str:
+    if protocol == "ssh":
+        remote_url = payload.get("ssh_url")
+        if not remote_url:
+            raise HostingProviderError("GitHub API response did not include ssh_url.")
+        return remote_url
+
+    remote_url = payload.get("clone_url")
+    if not remote_url:
+        raise HostingProviderError("GitHub API response did not include clone_url.")
+    return remote_url
 
 
 def _build_github_error(response: requests.Response) -> str:
