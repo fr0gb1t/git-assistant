@@ -62,8 +62,8 @@ from git_assistant.release.ai_evaluator import (
 from git_assistant.release.decision import decide_auto_release
 from git_assistant.release.evaluator import evaluate_first_stable_hint, evaluate_release
 from git_assistant.release.executor import (
-    RELEASE_MANAGED_FILES,
     create_release_tag,
+    get_release_managed_files,
     normalize_release_version,
     prepare_release_changelog,
 )
@@ -880,7 +880,7 @@ def apply_release(
         return
 
     try:
-        git_add_files(RELEASE_MANAGED_FILES, cwd)
+        git_add_files(get_release_managed_files(cwd), cwd)
         git_commit(f"chore(release): publish v{normalized_version}", cwd)
     except GitError as exc:
         print(f"Git error while creating release commit: {exc}", file=sys.stderr)

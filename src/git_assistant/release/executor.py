@@ -57,6 +57,20 @@ def prepare_release_changelog(cwd: Path, version: str) -> PreparedRelease:
     )
 
 
+def get_release_managed_files(cwd: Path) -> list[str]:
+    """
+    Return only the release-managed files that actually exist in this repository.
+    CHANGELOG.md is always included because release preparation depends on it.
+    """
+    managed_files = ["CHANGELOG.md"]
+
+    for file_path in (PYPROJECT_FILE, PACKAGE_INIT_FILE):
+        if (cwd / file_path).exists():
+            managed_files.append(file_path)
+
+    return managed_files
+
+
 def create_release_tag(cwd: Path, version: str) -> str:
     """
     Create a Git tag for the released version after a successful commit.
@@ -72,8 +86,14 @@ def sync_project_version_files(cwd: Path, version: str) -> None:
     Update version declarations that should match the released Git tag.
     """
     normalized_version = normalize_release_version(version)
-    _update_pyproject_version(cwd / PYPROJECT_FILE, normalized_version)
-    _update_package_init_version(cwd / PACKAGE_INIT_FILE, normalized_version)
+    pyproject_path = cwd / PYPROJECT_FILE
+    package_init_path = cwd / PACKAGE_INIT_FILE
+
+    if pyproject_path.exists():
+        _update_pyproject_version(pyproject_path, normalized_version)
+
+    if package_init_path.exists():
+        _update_package_init_version(package_init_path, normalized_version)
 
 
 def _update_pyproject_version(pyproject_path: Path, version: str) -> None:

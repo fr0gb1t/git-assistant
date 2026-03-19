@@ -5,6 +5,9 @@
 ### Added
 - add option to skip README.md workflow
 
+### Changed
+- move release-managed files logic to separate function
+
 ## [1.0.1] - 2026-03-19
 
 ### Added
