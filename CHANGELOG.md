@@ -5,6 +5,7 @@
 ### Added
 - add option to skip README.md workflow
 - enhance configurability of version updates across files
+- add origin remote check before push actions
 
 ### Changed
 - move release-managed files logic to separate function

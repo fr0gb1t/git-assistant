@@ -610,6 +610,34 @@ def maybe_configure_remote_repository(
     print(f"Warning: provider '{provider_key}' is not implemented.", file=sys.stderr)
 
 
+def ensure_origin_remote(
+    cwd: Path,
+    *,
+    non_interactive: bool = False,
+) -> bool:
+    """
+    Ensure the repository has an `origin` remote configured before pushing.
+    """
+    if has_remote_named("origin", cwd):
+        return True
+
+    if non_interactive:
+        print(
+            "Warning: skipping push because remote 'origin' is not configured.",
+            file=sys.stderr,
+        )
+        return False
+
+    print("\n🌐 No remote 'origin' is configured.")
+    maybe_configure_remote_repository(cwd, non_interactive=non_interactive)
+
+    if has_remote_named("origin", cwd):
+        return True
+
+    print("⚠ Push skipped because no remote 'origin' is configured.")
+    return False
+
+
 def handle_repository_init(cwd: Path, *, non_interactive: bool = False) -> None:
     if is_git_repo(cwd):
         repo_root = get_repo_root(cwd)
@@ -866,6 +894,8 @@ def apply_release(
     cwd: Path,
     version: str,
     release_config,
+    *,
+    non_interactive: bool = False,
 ) -> None:
     """
     Apply a release by closing the Unreleased section,
@@ -899,6 +929,8 @@ def apply_release(
         return
 
     try:
+        if not ensure_origin_remote(cwd, non_interactive=non_interactive):
+            return
         git_push(cwd)
         print("⬆ Release commit pushed to origin.")
     except GitError as exc:
@@ -1233,7 +1265,12 @@ def handle_post_commit_actions(
 
     if release_version is not None:
         try:
-            apply_release(cwd, release_version, release_config)
+            apply_release(
+                cwd,
+                release_version,
+                release_config,
+                non_interactive=non_interactive,
+            )
         except GitError as exc:
             print(
                 f"Warning: release could not be created: {exc}",
@@ -1242,6 +1279,8 @@ def handle_post_commit_actions(
         return
 
     if non_interactive:
+        if not ensure_origin_remote(cwd, non_interactive=non_interactive):
+            return
         try:
             git_push(cwd)
         except GitError as exc:
@@ -1254,6 +1293,8 @@ def handle_post_commit_actions(
         action = prompt_push_after_commit()
 
         if action == "1":
+            if not ensure_origin_remote(cwd, non_interactive=non_interactive):
+                return
             try:
                 git_push(cwd)
             except GitError as exc:
@@ -1293,7 +1334,12 @@ def main() -> None:
 
         print(f"📦 Repository: {get_repo_root(cwd)}")
         print(f"🚀 Applying manual release: {version}")
-        apply_release(cwd, version, app_config.release)
+        apply_release(
+            cwd,
+            version,
+            app_config.release,
+            non_interactive=non_interactive,
+        )
         sys.exit(0)
 
     try:

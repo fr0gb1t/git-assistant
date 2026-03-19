@@ -10,10 +10,26 @@ from git_assistant.commit.service import CommitMessageResult
 from git_assistant.config.loader import AppConfig
 from git_assistant.release.decision import ReleaseDecision
 from git_assistant.release.evaluator import ReleaseSuggestion, StableReleaseHint
-from git_assistant.cli import main
+from git_assistant.cli import ensure_origin_remote, main
 
 
 class PushFlowTests(unittest.TestCase):
+    def test_ensure_origin_remote_offers_configuration_when_missing(self) -> None:
+        with patch("git_assistant.cli.has_remote_named", side_effect=[False, True]):
+            with patch("git_assistant.cli.maybe_configure_remote_repository") as mock_configure:
+                configured = ensure_origin_remote(Path("/repo"))
+
+        self.assertTrue(configured)
+        mock_configure.assert_called_once_with(Path("/repo"), non_interactive=False)
+
+    def test_ensure_origin_remote_skips_push_when_still_missing(self) -> None:
+        with patch("git_assistant.cli.has_remote_named", side_effect=[False, False]):
+            with patch("git_assistant.cli.maybe_configure_remote_repository") as mock_configure:
+                configured = ensure_origin_remote(Path("/repo"))
+
+        self.assertFalse(configured)
+        mock_configure.assert_called_once_with(Path("/repo"), non_interactive=False)
+
     def test_main_offers_push_when_no_release_is_applied(self) -> None:
         args = Namespace(
             provider=None,
@@ -72,9 +88,11 @@ class PushFlowTests(unittest.TestCase):
                                                             with patch("git_assistant.cli.git_add_files"):
                                                                 with patch("git_assistant.cli.git_commit", return_value="[main abc123] msg"):
                                                                     with patch("git_assistant.cli.prompt_push_after_commit", return_value="1"):
-                                                                        with patch("git_assistant.cli.git_push") as mock_push:
-                                                                            main()
+                                                                        with patch("git_assistant.cli.ensure_origin_remote", return_value=True) as mock_origin:
+                                                                            with patch("git_assistant.cli.git_push") as mock_push:
+                                                                                main()
 
+        mock_origin.assert_called_once_with(Path.cwd(), non_interactive=False)
         mock_push.assert_called_once_with(Path.cwd())
 
 
