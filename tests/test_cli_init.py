@@ -54,6 +54,20 @@ class InitFlowTests(unittest.TestCase):
         self.assertEqual(request.remote_protocol, "ssh")
         self.assertEqual(mock_create.call_args.kwargs["token"], "secret")
 
+    def test_maybe_configure_remote_repository_prompts_for_github_token_when_missing(self) -> None:
+        with patch("git_assistant.cli.has_remote_named", return_value=False):
+            with patch("git_assistant.cli.prompt_remote_setup_action", return_value="1"):
+                with patch("git_assistant.cli.prompt_remote_provider_choice", return_value="1"):
+                    with patch("git_assistant.cli.prompt_github_owner", return_value="frogbit"):
+                        with patch("git_assistant.cli.prompt_remote_visibility", return_value="2"):
+                            with patch("git_assistant.cli.prompt_remote_protocol", return_value="1"):
+                                with patch("git_assistant.cli._get_github_token", return_value=None):
+                                    with patch("git_assistant.cli.prompt_github_token", return_value="typed-secret"):
+                                        with patch("git_assistant.cli.create_remote_repository", return_value="git@github.com:frogbit/repo.git") as mock_create:
+                                            maybe_configure_remote_repository(Path("/repo"))
+
+        self.assertEqual(mock_create.call_args.kwargs["token"], "typed-secret")
+
     def test_maybe_configure_remote_repository_can_add_existing_remote_url(self) -> None:
         with patch("git_assistant.cli.has_remote_named", return_value=False):
             with patch("git_assistant.cli.prompt_remote_setup_action", return_value="2"):

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import argparse
-import os
+import getpass
 import sys
 from pathlib import Path
 
@@ -410,11 +410,8 @@ def prompt_remote_provider_choice() -> str:
     return input("> ").strip()
 
 
-def prompt_github_owner(default_owner: str | None = None) -> str:
-    prompt = "GitHub owner or organization"
-    if default_owner:
-        prompt = f"{prompt} [{default_owner}]"
-    return input(f"{prompt}: ").strip()
+def prompt_github_owner() -> str:
+    return input("GitHub owner or organization: ").strip()
 
 
 def prompt_remote_visibility() -> str:
@@ -433,6 +430,12 @@ def prompt_remote_protocol() -> str:
 
 def prompt_existing_remote_url() -> str:
     return input("Remote URL for origin: ").strip()
+
+
+def prompt_github_token() -> str:
+    print("ℹ Creating a GitHub repository requires a token for this request only.")
+    print("ℹ GitHub: Settings -> Developer settings -> Personal access tokens.")
+    return getpass.getpass("GitHub token: ").strip()
 
 
 def prompt_edit_commit_message(suggested_message: str) -> str:
@@ -508,14 +511,6 @@ def maybe_handle_upstream_sync(cwd: Path, *, clean_worktree: bool, non_interacti
         print("Invalid option.")
 
 
-def _default_github_owner() -> str | None:
-    for env_name in ("GITHUB_OWNER", "GITHUB_USER", "USER"):
-        value = os.environ.get(env_name)
-        if value:
-            return value
-    return None
-
-
 def _get_github_token() -> str | None:
     for env_name in ("GITHUB_TOKEN", "GH_TOKEN"):
         value = os.environ.get(env_name)
@@ -571,8 +566,7 @@ def maybe_configure_remote_repository(
             repo_name = cwd.resolve().name
 
             if provider_key == "github":
-                default_owner = _default_github_owner()
-                owner = prompt_github_owner(default_owner=default_owner) or (default_owner or "")
+                owner = prompt_github_owner()
                 if not owner:
                     print("Cancelled: no GitHub owner provided.", file=sys.stderr)
                     return
@@ -599,11 +593,14 @@ def maybe_configure_remote_repository(
 
                 token = _get_github_token()
                 if not token:
-                    print(
-                        "Warning: set GITHUB_TOKEN or GH_TOKEN to create GitHub repositories via API.",
-                        file=sys.stderr,
-                    )
-                    continue
+                    token = prompt_github_token()
+                    if not token:
+                        print(
+                            "Warning: no GitHub token provided. "
+                            "If the remote repo already exists, use 'Add an existing remote URL'.",
+                            file=sys.stderr,
+                        )
+                        continue
 
                 request = RemoteRepositoryRequest(
                     owner=owner,
